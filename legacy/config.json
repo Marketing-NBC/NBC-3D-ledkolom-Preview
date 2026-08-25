@@ -1,0 +1,12 @@
+{
+  "maxHtmlMB": 15,
+  "videoBudgetMB": 10.5,
+  "fps": 24,
+  "minFaceAspect": 3.0,
+  "forceAll": false,
+  "showName": true,
+  "maxDurationSec": 60,
+  "preset": "medium",
+  "netlify": true,
+  "localHtml": true
+}

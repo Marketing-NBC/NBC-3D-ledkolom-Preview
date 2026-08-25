@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>NBC Events · 3D Kolom Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0E1C2B;
+    --navy-deep:#070F18;
+    --navy-surface:#16293A;
+    --gold:#C7A24A;
+    --gold-bright:#E3C277;
+    --cream:#F5F1EA;
+    --font:'Poppins',system-ui,-apple-system,Segoe UI,Arial,sans-serif;
+  }
+  html,body{margin:0;height:100%;overflow:hidden;font-family:var(--font);
+    background:radial-gradient(circle at 50% 36%, #1A3047 0%, #0E1C2B 46%, var(--navy-deep) 100%);}
+  #c{display:block;width:100%;height:100%;touch-action:none;}
+
+  /* subtiel podium-vignet voor diepte */
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:1;
+    background:radial-gradient(ellipse at 50% 42%, rgba(0,0,0,0) 38%, rgba(4,9,15,.55) 100%);}
+
+  /* NBC logo, subtiel linksboven */
+  #logo{position:fixed;top:22px;left:24px;z-index:4;width:96px;height:auto;opacity:.85;
+    filter:drop-shadow(0 2px 8px rgba(0,0,0,.4));}
+  #logo svg{width:100%;height:auto;display:block;}
+
+  /* knoppen rechtsboven */
+  #btns{position:fixed;top:20px;right:20px;display:flex;gap:10px;z-index:4;}
+  #btns button{background:rgba(22,41,58,.72);color:var(--cream);
+    border:1px solid rgba(199,162,74,.45);border-radius:999px;
+    padding:10px 18px;font-family:var(--font);font-size:13px;font-weight:500;
+    letter-spacing:.2px;cursor:pointer;backdrop-filter:blur(6px);transition:.18s;}
+  #btns button:hover{border-color:var(--gold);color:#fff;background:rgba(22,41,58,.95);}
+
+  /* hint onderaan */
+  #hint{position:fixed;left:0;right:0;bottom:22px;text-align:center;z-index:3;
+    color:var(--cream);opacity:.7;font-size:13px;font-weight:400;letter-spacing:.4px;pointer-events:none;}
+  #hint::before{content:"";display:block;width:46px;height:2px;margin:0 auto 12px;
+    background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.9;}
+
+  /* start-overlay */
+  #start{position:fixed;inset:0;z-index:6;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:22px;cursor:pointer;
+    background:radial-gradient(circle at 50% 40%, #16293A 0%, #0E1C2B 55%, var(--navy-deep) 100%);}
+  #start .projname{display:__NAME_DISPLAY__;color:var(--gold-bright);font-size:22px;font-weight:600;
+    letter-spacing:.5px;text-align:center;max-width:80vw;margin-bottom:-6px;}
+  #start .play{display:flex;align-items:center;gap:14px;
+    background:var(--navy-surface);border:1.5px solid var(--gold);border-radius:999px;
+    padding:16px 30px;color:var(--cream);font-size:18px;font-weight:600;letter-spacing:.3px;
+    box-shadow:0 10px 40px rgba(0,0,0,.45);transition:.2s;}
+  #start:hover .play{background:#1d3850;box-shadow:0 12px 48px rgba(199,162,74,.22);}
+  #start .play .tri{color:var(--gold-bright);font-size:20px;line-height:1;}
+  #start small{color:var(--cream);opacity:.55;font-size:13px;font-weight:400;letter-spacing:.4px;}
+  #start .brand{position:fixed;bottom:26px;color:var(--cream);opacity:.4;font-size:12px;letter-spacing:1px;}
+</style>
+</head>
+<body>
+
+<div id="logo"><svg width="184" height="80" viewBox="0 0 184 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M46.218 0.516672C43.7449 0.859019 41.9794 1.4303 40.6855 2.11709C39.3895 2.80389 38.2124 3.83303 37.0332 5.20452C35.7394 6.5739 34.915 8.29194 34.4433 10.346C34.2097 11.2596 34.0907 12.1754 34.0907 13.2045C34.0907 14.2337 34.0907 15.2607 34.2097 16.063C34.2097 16.9766 34.4433 18.0058 34.7982 19.2638C35.1509 20.5198 35.3867 21.4334 35.6225 22.2337C35.8584 23.0339 36.3279 24.063 36.9186 25.4324C37.5071 26.9194 37.9788 27.9485 38.3314 28.5198C38.6863 29.2066 39.2726 30.3492 40.216 31.9475C41.0403 33.5479 41.6289 34.575 41.9815 35.1483C42.2174 35.7217 42.9227 36.8622 43.9829 38.5781C45.0431 40.4075 45.6316 41.5479 45.8675 42.0058C55.4049 58.1192 58.1116 68.6353 53.7562 73.5479C53.5204 73.8924 53.2845 74.0037 52.9318 74.0037C51.1663 74.0037 48.3384 68.9756 44.4546 58.9194L22.3376 0H0V80H9.76244V79.9454H25.3776C15.0158 57.8882 10.3077 38.2295 11.3679 20.8601L29.1467 68.1754C30.7954 72.6322 32.6778 75.9485 34.7982 78.0026C35.6637 78.8427 36.6762 79.5022 37.8273 80H65.1089V0H51.0906C49.8421 0.100814 48.2107 0.226832 46.218 0.516672ZM135.413 80V0H183.998V18.9782C178.446 13.843 172.909 10.3733 167.439 8.63219C160.256 6.46259 154.371 7.60305 149.896 12.1754C146.984 15.0801 145.426 18.7136 145.177 23.0381V25.5857C145.264 27.1693 145.498 28.8286 145.894 30.576C147.661 38.3492 152.136 46.3471 159.434 54.4626C166.734 62.576 174.034 67.7196 181.215 69.8913C182.17 70.179 183.096 70.4059 184 70.576V79.9706C183.959 79.9811 183.916 79.9895 183.874 80H135.413ZM130.358 80V57.8945C129.718 54.0068 127.814 50.9131 124.618 48.6301C120.616 45.7737 115.434 44.8601 109.077 45.6603C111.314 44.2867 113.079 43.2597 114.14 42.5729C115.2 41.8861 116.846 40.7435 118.967 39.2565C121.085 37.7716 122.734 36.4001 123.792 35.1441C124.852 33.8882 126.029 32.4012 127.325 30.6873C128.619 28.9735 129.443 27.1441 130.032 25.088C130.159 24.5608 130.265 24.0168 130.356 23.4602V0H69.38V80H79.1424V79.9454H99.892C100.154 79.9454 100.403 79.9328 100.662 79.9286L100.537 80H130.358ZM86.2371 27.0307C86.2371 17.5437 87.65 10.5729 90.5947 6.34287C93.5373 2.11499 97.1874 0.28564 101.662 1.08585C106.253 1.88606 109.198 4.40221 110.728 8.63009C112.14 12.858 111.905 17.8882 110.022 23.7165C108.021 29.5448 104.726 34.9173 100.015 40.0567C96.3652 43.9422 93.5373 47.372 91.4212 50.3439C89.3008 53.3137 87.5353 56.6301 86.2393 60.1712L86.2371 27.0307ZM94.9502 77.089H86.2371C86.9446 67.3752 90.004 59.9464 95.4197 54.8049C99.4224 51.0307 103.192 49.6613 106.839 50.9194C110.842 52.1775 112.846 55.9475 112.846 62.3492C112.846 66.806 111.316 70.3471 108.136 72.9745C104.955 75.7196 100.483 77.089 94.9502 77.089Z" fill="#FAFAFA"/>
+</svg></div>
+
+<div id="btns">
+  <button id="spin">Auto-draaien: aan</button>
+</div>
+
+<canvas id="c"></canvas>
+<div id="vignette"></div>
+<div id="hint">Sleep om te draaien · scroll om te zoomen</div>
+
+<div id="start">
+  <div class="projname">__PROJECT_NAME__</div>
+  <div class="play"><span class="tri">&#9654;</span><span>Bekijk de 3D-kolom</span></div>
+  <small>daarna slepen om rond te draaien</small>
+  <div class="brand">NBC EVENTS · RUIMTE VOOR MAGIE</div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const W = 1, D = 1, H = __FACE_RATIO__;
+const canvas  = document.getElementById('c');
+const startEl = document.getElementById('start');
+
+// ---- 1. event listeners EERST — vóór alle code die kan crashen ---
+let _webglReady = false, video;
+
+function begin(){
+  if (!_webglReady) {
+    startEl.innerHTML =
+      '<div class="projname" style="display:block;margin-bottom:8px">3D-preview</div>' +
+      '<div class="play" style="cursor:default;flex-direction:column;gap:6px">' +
+        '<span>Open in Safari of Chrome</span>' +
+      '</div>' +
+      '<small style="margin-top:12px">Deze app ondersteunt geen 3D-weergave</small>' +
+      '<div class="brand">NBC EVENTS \xb7 RUIMTE VOOR MAGIE</div>';
+    return;
+  }
+  startEl.style.display = 'none';
+  video.play().catch(()=>{});
+}
+startEl.addEventListener('click', begin);
+startEl.addEventListener('touchend', (e) => { e.preventDefault(); begin(); });
+
+// ---- 2. Three.js initialiseren in try/catch ----------------------
+let renderer, scene, camera, orbit, column;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+  camera.position.set(3.2, 0.5, 8);
+
+  orbit = new OrbitControls(camera, renderer.domElement);
+  orbit.enableDamping = true;
+  orbit.target.set(0, 0, 0);
+  orbit.minDistance = 3;
+  orbit.maxDistance = 25;
+
+  // ---- video als textuur (los bestand, streamt) ------------------
+  video = document.createElement('video');
+  video.src = 'kolom.mp4';
+  video.loop = true;
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.setAttribute('playsinline','');
+  video.setAttribute('webkit-playsinline','');
+
+  const tex = new THREE.VideoTexture(video);
+  tex.colorSpace = THREE.SRGBColorSpace;
+
+  // ---- box met per-zijde een kwart van de textuur ----------------
+  const geo = new THREE.BoxGeometry(W, H, D);
+  const uv  = geo.attributes.uv;
+  function strip(faceIndex, uMin, uMax){
+    const o = faceIndex * 4;
+    for (let k = 0; k < 4; k++){
+      const u = uv.getX(o + k);
+      uv.setX(o + k, uMin + u * (uMax - uMin));
+    }
+  }
+  strip(4, 0.00, 0.25);  // +Z  zijde 1
+  strip(0, 0.25, 0.50);  // +X  zijde 2
+  strip(5, 0.50, 0.75);  // -Z  zijde 3
+  strip(1, 0.75, 1.00);  // -X  zijde 4
+  uv.needsUpdate = true;
+
+  const sideMat = new THREE.MeshBasicMaterial({ map: tex });
+  const capMat  = new THREE.MeshBasicMaterial({ color: 0x0c1722 });
+  column = new THREE.Mesh(geo, [sideMat, sideMat, capMat, capMat, sideMat, sideMat]);
+  scene.add(column);
+
+  column.add(new THREE.LineSegments(
+    new THREE.EdgesGeometry(geo),
+    new THREE.LineBasicMaterial({ color: 0xC7A24A, transparent:true, opacity:0.28 })
+  ));
+
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(2.4, 48),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent:true, opacity:0.30 })
+  );
+  floor.rotation.x = -Math.PI/2;
+  floor.position.y  = -H/2 - 0.02;
+  scene.add(floor);
+
+  _webglReady = true;   // alles gelukt
+
+} catch(e) {
+  console.warn('WebGL niet beschikbaar:', e.message);
+  // begin() toont de foutmelding bij de eerste tik
+}
+
+// ---- 3. Renderloop en UI alleen als WebGL werkt ------------------
+if (_webglReady) {
+  let spin = true;
+  const spinBtn = document.getElementById('spin');
+  spinBtn.onclick = () => { spin = !spin; spinBtn.textContent = 'Auto-draaien: ' + (spin?'aan':'uit'); };
+  orbit.addEventListener('start', () => { spin = false; spinBtn.textContent = 'Auto-draaien: uit'; });
+
+  function resize(){
+    const w = innerWidth, h = innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w/h; camera.updateProjectionMatrix();
+  }
+  addEventListener('resize', resize); resize();
+
+  function loop(){
+    requestAnimationFrame(loop);
+    if (spin) column.rotation.y += 0.005;
+    orbit.update();
+    renderer.render(scene, camera);
+  }
+  loop();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# nooit meenemen: tokens en sleutels
+*token*.txt
+.env
+.env.*
+*.pem
+
+# externe programma's horen niet in de repo
+*.exe
+*.dll
+
+# rommel
+node_modules/
+.DS_Store
+Thumbs.db
+desktop.ini
