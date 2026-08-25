@@ -1,9 +1,11 @@
 name: Preview bouwen en publiceren
 
-# Draait als er iets in docs/ verandert (bijvoorbeeld een nieuwe video die je
-# via github.com in docs/p/ hebt gezet), en handmatig via "Run workflow" voor
-# video's die te groot zijn voor de upload-knop van github.com.
+# Hoofdweg: je publiceert een release met de mp4 als bijlage. Daarnaast draait
+# hij als er iets in docs/ verandert (een kleine video die je rechtstreeks in
+# docs/p/ hebt gezet), en handmatig via "Run workflow" met een link.
 on:
+  release:
+    types: [published]
   push:
     branches: [main]
     paths:
@@ -60,10 +62,15 @@ jobs:
       - name: Preview(s) bouwen
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
           VIDEO_URL: ${{ inputs.video_url }}
           NAAM: ${{ inputs.naam }}
         run: |
-          if [ -n "$VIDEO_URL" ]; then
+          if [ -n "$RELEASE_TAG" ]; then
+            # een release is gepubliceerd: alle video's die eraan hangen verwerken
+            node tools/build.mjs release --tag "$RELEASE_TAG"
+          elif [ -n "$VIDEO_URL" ]; then
             if [ -n "$NAAM" ]; then
               node tools/build.mjs add --video "$VIDEO_URL" --name "$NAAM"
             else

@@ -12,46 +12,60 @@ hoeft niets op een eigen computer te draaien.
 
 ## Een nieuwe preview maken
 
-1. Ga naar de map [`docs/p/`](../../tree/main/docs/p) in deze repository.
-2. Klik **Add file → Upload files** en sleep de mp4 erin.
-3. Klik **Commit changes**.
-4. Wacht ongeveer een minuut. Onder het tabblad **Actions** zie je de voortgang.
-5. Klaar. De link staat in het overzicht en onderaan het Actions-logboek.
+Ledkolom-exports zijn al snel een paar honderd MB. De upload-knop van
+github.com stopt bij 25 MB, dus loopt het via een release: daar mag een bestand
+tot 2 GB zijn.
 
-De bestandsnaam wordt de naam op het startscherm en bepaalt de link:
+1. Ga naar **Releases** (rechterkolom op de voorpagina) → **Draft a new release**.
+2. Vul bij *Choose a tag* een nieuwe naam in, bijvoorbeeld `deloitte-25-aug`, en klik **Create new tag**.
+3. Sleep de mp4 in het vak **Attach binaries**. Wacht tot de upload klaar is.
+4. Klik **Publish release**.
+5. Wacht een paar minuten. Onder **Actions** zie je de voortgang; als de balk groen is staat de link in het [overzicht](https://marketing-nbc.github.io/NBC-3D-ledkolom-Preview/).
 
-| Bestand dat je uploadt        | Wordt                                             |
-| ----------------------------- | ------------------------------------------------- |
-| `Deloitte - 25 aug.mp4`       | `.../p/deloitte-25-aug/`, startscherm "Deloitte - 25 aug" |
-| `Brookz_27 aug - trim.mp4`    | `.../p/brookz-27-aug/`, startscherm "Brookz 27 aug"       |
+Je mag meerdere mp4's aan één release hangen. Ze worden dan allemaal verwerkt.
+
+**De naam komt van het bestand, niet van de tag.** Sleep je
+`Deloitte - 25 aug.mp4` in de release, dan wordt de link
+`.../p/deloitte-25-aug/` en staat "Deloitte - 25 aug" op het startscherm. De tag
+van de release doet er verder niet toe; die moet alleen uniek zijn.
+
+| Bestand dat je bijvoegt      | Wordt                                                     |
+| ---------------------------- | --------------------------------------------------------- |
+| `Deloitte - 25 aug.mp4`      | `.../p/deloitte-25-aug/`, startscherm "Deloitte - 25 aug"  |
+| `Brookz_27 aug - trim.mp4`   | `.../p/brookz-27-aug/`, startscherm "Brookz 27 aug"        |
 
 Onderstrepingstekens worden spaties en een `- trim` achter de naam gaat eraf,
-zodat je exports rechtstreeks kunt uploaden.
+zodat je exports rechtstreeks kunt bijvoegen.
 
-Upload je een video met dezelfde naam nog een keer, dan wordt diezelfde preview
+Gebruik je dezelfde bestandsnaam nog een keer, dan wordt diezelfde preview
 bijgewerkt en blijft de link werken. Handig als er een nieuwe versie komt nadat
 je de link al hebt verstuurd.
 
-### Video's groter dan 25 MB
+### Wat er met je bronvideo gebeurt
 
-De upload-knop op github.com gaat tot 25 MB. Is je bronvideo groter, dan is dit
-de weg eromheen:
+De mp4 blijft in de release staan; alleen de gecomprimeerde versie van ongeveer
+10 MB komt in de repository terecht. Je hebt er dus meteen een archief van je
+aangeleverde bestanden bij. Ruimt lekker op om oude releases af en toe weg te
+gooien, maar het hoeft niet: bijlagen bij releases tellen niet mee voor de
+grootte van de repository zelf.
 
-1. Ga naar **Releases** (rechterkolom op de voorpagina) → **Draft a new release**.
-2. Geef hem een tag, bijvoorbeeld `bronvideos`, en sleep de mp4 bij **Attach binaries**. Hier mag een bestand tot 2 GB zijn.
-3. Publiceer de release en kopieer de link van het bestand (rechtermuisknop → linkadres kopiëren).
-4. Ga naar **Actions → Preview bouwen en publiceren → Run workflow**.
-5. Plak de link bij *video_url*, vul bij *naam* de gewenste naam in en start.
+### Twee kortere routes
 
-Het bronbestand blijft dan in de release staan en komt niet in de repository
-terecht.
+**Video kleiner dan 25 MB** — sleep hem rechtstreeks in de map
+[`docs/p/`](../../tree/main/docs/p) via **Add file → Upload files** en commit.
+Verder gaat het precies hetzelfde.
+
+**Video staat al ergens online** — ga naar **Actions → Preview bouwen en
+publiceren → Run workflow**, plak de link bij *video_url* en vul bij *naam* in
+wat er op het startscherm moet komen.
 
 ## Wat er onder water gebeurt
 
 De workflow [`publiceer-preview.yml`](.github/workflows/publiceer-preview.yml)
-draait `tools/build.mjs`, en dat script:
+draait `tools/build.mjs`. Dat script haalt de video op uit de release en gaat
+er dan mee aan de slag:
 
-1. leest breedte, hoogte en duur van de video met `ffprobe`;
+1. het leest breedte, hoogte en duur van de video met `ffprobe`;
 2. controleert of het echt een kolomvideo is — vier zijden naast elkaar, dus
    hoog en smal. Klopt de verhouding niet, dan stopt hij met een melding in
    plaats van er een platgeslagen kolom van te maken;

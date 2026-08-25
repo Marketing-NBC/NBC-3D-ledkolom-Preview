@@ -30,8 +30,7 @@ const TPL_INDEX = fs.readFileSync(path.join(ROOT, 'tools', 'template-index.html'
 const VIDEO_EXT = new Set(['.mp4', '.mov', '.m4v', '.webm', '.mkv', '.avi']);
 const MB        = 1024 * 1024;
 
-const warnings = [];
-const errors   = [];
+const errors = [];
 
 // ---------- kleine helpers ------------------------------------------
 
@@ -259,36 +258,68 @@ function collectLooseVideos() {
   return found;
 }
 
-// ---------- download voor de "add"-mode ------------------------------
+// ---------- bronbestanden ophalen ------------------------------------
+
+function api(pad) {
+  const token = process.env.GITHUB_TOKEN || '';
+  const url = pad.startsWith('http') ? pad : `https://api.github.com${pad}`;
+  const args = ['-fsSL', '--retry', '3', '--retry-delay', '2', '-H', 'Accept: application/vnd.github+json'];
+  if (token) args.push('-H', `Authorization: Bearer ${token}`);
+  return JSON.parse(run('curl', [...args, url]));
+}
+
+// een release-asset via de API: werkt ook als de repository private is
+function downloadAsset(asset) {
+  const token = process.env.GITHUB_TOKEN || '';
+  const dest = path.join(os.tmpdir(), 'bron_' + crypto.randomBytes(8).toString('hex') + path.extname(asset.name));
+  const args = ['-fsSL', '--retry', '3', '--retry-delay', '2', '-H', 'Accept: application/octet-stream'];
+  if (token) args.push('-H', `Authorization: Bearer ${token}`);
+  console.log(`  ophalen uit release (${(asset.size / MB).toFixed(0)} MB)...`);
+  run('curl', [...args, '-o', dest, asset.url]);
+  return dest;
+}
 
 function download(url) {
   const dest = path.join(os.tmpdir(), 'bron_' + crypto.randomBytes(8).toString('hex') + path.extname(new URL(url).pathname));
   const token = process.env.GITHUB_TOKEN || '';
   const args = ['-fsSL', '--retry', '3', '--retry-delay', '2', '-o', dest];
 
-  // release-assets van een private repo hebben de API + een token nodig
+  // een geplakte release-link omzetten naar de API, zodat een token werkt
   const m = url.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/releases\/download\/([^/]+)\/(.+)$/);
-  if (m && token) {
+  if (m) {
     const [, owner, repo, tag, file] = m;
-    const relJson = run('curl', [
-      '-fsSL', '-H', `Authorization: Bearer ${token}`,
-      '-H', 'Accept: application/vnd.github+json',
-      `https://api.github.com/repos/${owner}/${repo}/releases/tags/${tag}`,
-    ]);
-    const asset = JSON.parse(relJson).assets.find((a) => a.name === decodeURIComponent(file));
+    const rel = api(`/repos/${owner}/${repo}/releases/tags/${tag}`);
+    const asset = (rel.assets || []).find((a) => a.name === decodeURIComponent(file));
     if (!asset) throw new Error(`Release "${tag}" bevat geen bestand "${decodeURIComponent(file)}"`);
-    run('curl', [...args, '-H', `Authorization: Bearer ${token}`, '-H', 'Accept: application/octet-stream', asset.url]);
-    return dest;
+    return downloadAsset(asset);
   }
 
-  if (token && url.startsWith('https://')) {
+  if (token) {
     const host = new URL(url).host;
     if (host === 'github.com' || host === 'api.github.com' || host.endsWith('.githubusercontent.com')) {
       args.push('-H', `Authorization: Bearer ${token}`);
     }
   }
+  console.log('  downloaden...');
   run('curl', [...args, url]);
   return dest;
+}
+
+// alle videobestanden die aan een release hangen
+function releaseJobs(tag) {
+  const repo = process.env.GITHUB_REPOSITORY;
+  if (!repo) throw new Error('GITHUB_REPOSITORY ontbreekt; deze mode hoort in GitHub Actions te draaien.');
+  const rel = api(`/repos/${repo}/releases/tags/${encodeURIComponent(tag)}`);
+  const videos = (rel.assets || []).filter((a) => VIDEO_EXT.has(path.extname(a.name).toLowerCase()));
+
+  if (videos.length === 0) {
+    const andere = (rel.assets || []).map((a) => a.name).join(', ') || 'geen';
+    throw new Error(
+      `Release "${tag}" bevat geen videobestand. Bijlagen gevonden: ${andere}. ` +
+      `Sleep de mp4 bij "Attach binaries" en publiceer de release opnieuw.`
+    );
+  }
+  return videos.map((a) => ({ asset: a, name: displayNameFromFile(a.name) }));
 }
 
 // ---------- hoofdprogramma -------------------------------------------
@@ -307,40 +338,49 @@ function main() {
   const mode = args._[0] || 'scan';
   fs.mkdirSync(PREVIEWS, { recursive: true });
 
-  const jobs = [];
+  let jobs = [];
 
-  if (mode === 'add') {
+  if (mode === 'release') {
+    if (!args.tag) throw new Error('Gebruik: node tools/build.mjs release --tag <naam-van-de-release>');
+    jobs = releaseJobs(args.tag);
+    console.log(`Release "${args.tag}": ${jobs.length} video(s) gevonden.`);
+  } else if (mode === 'add') {
     if (!args.video) throw new Error('Gebruik: node tools/build.mjs add --video <pad-of-url> [--name "Naam"]');
     const isUrl = /^https?:\/\//i.test(args.video);
-    const file  = isUrl ? download(args.video) : path.resolve(args.video);
-    if (!fs.existsSync(file)) throw new Error(`Bestand niet gevonden: ${args.video}`);
-    const name = args.name || displayNameFromFile(isUrl ? new URL(args.video).pathname : file);
-    jobs.push({ file, name, cleanup: isUrl });
+    if (isUrl) {
+      jobs = [{ url: args.video, name: args.name || displayNameFromFile(new URL(args.video).pathname) }];
+    } else {
+      const file = path.resolve(args.video);
+      if (!fs.existsSync(file)) throw new Error(`Bestand niet gevonden: ${args.video}`);
+      jobs = [{ file, name: args.name || displayNameFromFile(file) }];
+    }
   } else if (mode === 'scan') {
-    for (const v of collectLooseVideos()) jobs.push({ ...v, cleanup: true });
+    jobs = collectLooseVideos().map((v) => ({ ...v, opruimen: true }));
   } else {
-    throw new Error(`Onbekende mode "${mode}". Gebruik "scan" of "add".`);
+    throw new Error(`Onbekende mode "${mode}". Gebruik "release", "add" of "scan".`);
   }
 
-  if (jobs.length === 0) console.log('Geen nieuwe video\'s gevonden.');
+  if (jobs.length === 0) console.log("Geen nieuwe video's gevonden.");
 
   for (const job of jobs) {
-    console.log(`\n> ${path.basename(job.file)}`);
+    console.log(`\n> ${job.name || path.basename(job.file || '')}`);
+    let bestand = job.file;
+    let tijdelijk = Boolean(job.opruimen);
     try {
-      makePreview(job.file, job.name);
-      if (job.cleanup) fs.rmSync(job.file, { force: true });   // bronbestand niet bewaren
+      if (!bestand && job.asset) { bestand = downloadAsset(job.asset); tijdelijk = true; }
+      if (!bestand && job.url)   { bestand = download(job.url);        tijdelijk = true; }
+      makePreview(bestand, job.name);
     } catch (e) {
-      errors.push(`${path.basename(job.file)}: ${e.message}`);
+      errors.push(`${job.name || path.basename(bestand || '?')}: ${e.message}`);
       console.error(`  FOUT: ${e.message}`);
+    } finally {
+      // het bronbestand blijft nooit in de repository achter
+      if (tijdelijk && bestand) fs.rmSync(bestand, { force: true });
     }
   }
 
   buildIndex();
 
-  if (warnings.length) {
-    console.log('\nWaarschuwingen:');
-    for (const w of warnings) console.log(`  - ${w}`);
-  }
   if (errors.length) {
     console.error('\nNiet verwerkt:');
     for (const e of errors) console.error(`  - ${e}`);
