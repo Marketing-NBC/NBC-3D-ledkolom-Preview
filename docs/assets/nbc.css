@@ -63,24 +63,13 @@ body.viewer #c{display:block;width:100%;height:100%;touch-action:none;}
 #start small{color:var(--cream);opacity:.55;font-size:13px;letter-spacing:.4px;}
 #start .brand{position:fixed;bottom:26px;color:var(--cream);opacity:.4;font-size:12px;letter-spacing:1px;}
 
-/* ---------- overzichtspagina ---------- */
-body.index{padding:0 24px 80px;}
-.wrap{max-width:1080px;margin:0 auto;}
-header.top{display:flex;align-items:center;gap:20px;padding:44px 0 8px;}
-header.top img{width:104px;opacity:.9;}
-header.top .titles h1{margin:0;font-size:26px;font-weight:600;letter-spacing:.3px;}
-header.top .titles p{margin:6px 0 0;opacity:.6;font-size:14px;}
-.rule{height:2px;margin:26px 0 34px;
-  background:linear-gradient(90deg,var(--gold),rgba(199,162,74,0));opacity:.85;}
-
-.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));}
-.card{display:block;text-decoration:none;color:inherit;
-  background:rgba(22,41,58,.55);border:1px solid rgba(199,162,74,.25);
-  border-radius:14px;padding:20px 22px;transition:.18s;}
-.card:hover{border-color:var(--gold);background:rgba(22,41,58,.9);transform:translateY(-2px);}
-.card .name{font-size:17px;font-weight:600;color:var(--gold-bright);}
-.card .meta{margin-top:8px;font-size:12.5px;opacity:.55;letter-spacing:.2px;}
-.empty{background:rgba(22,41,58,.4);border:1px dashed rgba(199,162,74,.3);
-  border-radius:14px;padding:34px;opacity:.75;font-size:14.5px;line-height:1.65;}
-.empty code{background:rgba(0,0,0,.3);border-radius:5px;padding:2px 7px;font-size:13px;}
-footer.bot{margin-top:52px;opacity:.35;font-size:12px;letter-spacing:1px;}
+/* ---------- voorpagina (bewust zonder lijst) ---------- */
+body.landing{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px;}
+.midden{max-width:520px;text-align:center;}
+.midden .merk{width:132px;opacity:.9;}
+.midden .rule{height:2px;width:120px;margin:26px auto 28px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.9;}
+.midden p{margin:0 0 14px;font-size:15.5px;line-height:1.7;opacity:.8;}
+.midden p.klein{font-size:13.5px;opacity:.5;}
+.midden .brand{margin-top:42px;opacity:.35;font-size:12px;letter-spacing:1px;}
+.rule{height:2px;background:linear-gradient(90deg,var(--gold),rgba(199,162,74,0));opacity:.85;}

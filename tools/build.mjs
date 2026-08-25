@@ -55,6 +55,25 @@ function slugify(s) {
   return x;
 }
 
+// Achter de leesbare naam komt een willekeurig staartje, zodat iemand die één
+// link heeft de andere niet kan raden. Bestaat er al een map voor deze naam,
+// dan houden we dat staartje aan: een nieuwe versie van dezelfde video hoort
+// op dezelfde link te blijven staan.
+const TOKEN = /-[0-9a-f]{8}$/;
+
+function slugVoor(name) {
+  const basis = slugify(name);
+  if (fs.existsSync(PREVIEWS)) {
+    for (const entry of fs.readdirSync(PREVIEWS, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name.startsWith(basis + '-') && TOKEN.test(entry.name.slice(basis.length))) {
+        return entry.name;
+      }
+    }
+  }
+  return `${basis}-${crypto.randomBytes(4).toString('hex')}`;
+}
+
 // "Deloitte_25 aug - trim.mp4" -> "Deloitte 25 aug"
 // "Brookz.-.27.aug.mp4"          -> "Brookz - 27 aug"
 //
@@ -134,7 +153,7 @@ function encode(src, dest, info) {
 
 function makePreview(srcFile, displayName) {
   const name = displayName || displayNameFromFile(srcFile);
-  const slug = slugify(name);
+  const slug = slugVoor(name);
   const dir  = path.join(PREVIEWS, slug);
 
   const info = probe(srcFile);
@@ -201,38 +220,51 @@ function readAllMeta() {
   return out;
 }
 
-function buildIndex() {
-  const items = readAllMeta();
-  let cards;
-
-  if (items.length === 0) {
-    cards =
-      '<div class="empty">Er staan nog geen previews klaar.<br><br>' +
-      'Zet een ledkolom-video in de map <code>docs/p/</code> van deze repository; ' +
-      'de preview en de deelbare link worden er automatisch bij gemaakt.</div>';
-  } else {
-    cards = '<div class="grid">\n' + items.map((m) => {
-      const mb   = (m.video.bytes / MB).toFixed(1);
-      const secs = Math.round(m.video.duration);
-      const date = new Date(m.updated).toLocaleDateString('nl-NL', {
-        day: 'numeric', month: 'long', year: 'numeric',
-      });
-      return `    <a class="card" href="p/${encodeURIComponent(m.slug)}/">\n` +
-             `      <div class="name">${htmlEscape(m.name)}</div>\n` +
-             `      <div class="meta">${date} · ${secs} sec · ${mb} MB</div>\n` +
-             `    </a>`;
-    }).join('\n') + '\n  </div>';
-  }
-
-  const subtitle = items.length === 1
-    ? '1 preview beschikbaar'
-    : `${items.length} previews beschikbaar`;
-
+// De publieke site krijgt bewust GEEN lijst van previews. Wie een link naar
+// een kolom heeft en het pad afknipt, hoort niet de klanten van alle andere
+// kolommen te zien. Het overzicht komt in LINKS.md te staan: dat leest mee met
+// de repository en dus met wie daar toegang toe heeft.
+function buildLanding() {
   fs.writeFileSync(
     path.join(DOCS, 'index.html'),
-    TPL_INDEX.replaceAll('__CARDS__', cards).replaceAll('__SUBTITLE__', htmlEscape(subtitle))
+    TPL_INDEX.replaceAll('__JAAR__', String(new Date().getFullYear()))
   );
-  console.log(`overzicht bijgewerkt: ${items.length} preview(s)`);
+
+  // zoekmachines helemaal buiten de deur houden
+  fs.writeFileSync(path.join(DOCS, 'robots.txt'), 'User-agent: *\nDisallow: /\n');
+}
+
+function buildLinks(basisUrl) {
+  const items = readAllMeta();
+  const regels = [
+    '# Links naar de previews',
+    '',
+    '<!-- Dit bestand wordt automatisch bijgewerkt. Niet met de hand aanpassen. -->',
+    '',
+    'Stuur een collega alleen de link van de kolom die hij nodig heeft. De',
+    'previews staan niet op een overzichtspagina en de links zijn niet te raden,',
+    'dus wie er één heeft komt niet bij de rest.',
+    '',
+  ];
+
+  if (items.length === 0) {
+    regels.push('Er staan nog geen previews klaar.');
+  } else {
+    regels.push('| Preview | Link | Duur | Grootte | Bijgewerkt |');
+    regels.push('| --- | --- | --- | --- | --- |');
+    for (const m of items) {
+      const mb   = (m.video.bytes / MB).toFixed(1);
+      const secs = Math.round(m.video.duration);
+      const dag  = new Date(m.updated).toLocaleDateString('nl-NL', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      });
+      regels.push(`| ${m.name} | ${basisUrl}p/${m.slug}/ | ${secs} sec | ${mb} MB | ${dag} |`);
+    }
+  }
+
+  regels.push('');
+  fs.writeFileSync(path.join(ROOT, 'LINKS.md'), regels.join('\n'));
+  console.log(`overzicht bijgewerkt: ${items.length} preview(s) in LINKS.md`);
 }
 
 // ---------- losse videobestanden oppikken ----------------------------
@@ -387,7 +419,8 @@ function main() {
     }
   }
 
-  buildIndex();
+  buildLanding();
+  buildLinks(process.env.SITE_URL || 'https://marketing-nbc.github.io/NBC-3D-ledkolom-Preview/');
 
   if (errors.length) {
     console.error('\nNiet verwerkt:');

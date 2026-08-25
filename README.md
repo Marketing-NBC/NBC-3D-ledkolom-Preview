@@ -6,7 +6,7 @@ ziet de kolom in 3D en kan hem ronddraaien.
 Alles gebeurt online, in deze repository. Je hoeft niets te installeren en er
 hoeft niets op een eigen computer te draaien.
 
-**Overzicht van alle previews:** https://marketing-nbc.github.io/NBC-3D-ledkolom-Preview/
+**Alle links op een rij:** [LINKS.md](LINKS.md) — dat bestand wordt automatisch bijgewerkt.
 
 ---
 
@@ -20,7 +20,7 @@ tot 2 GB zijn.
 2. Vul bij *Choose a tag* een nieuwe naam in, bijvoorbeeld `deloitte-25-aug`, en klik **Create new tag**.
 3. Sleep de mp4 in het vak **Attach binaries**. Wacht tot de upload klaar is.
 4. Klik **Publish release**.
-5. Wacht een paar minuten. Onder **Actions** lopen er twee taken achter elkaar: eerst *Release verwerken*, daarna *Preview bouwen en publiceren*. Zijn ze allebei groen, dan staat de link in het [overzicht](https://marketing-nbc.github.io/NBC-3D-ledkolom-Preview/).
+5. Wacht een paar minuten. Onder **Actions** lopen er twee taken achter elkaar: eerst *Release verwerken*, daarna *Preview bouwen en publiceren*. Zijn ze allebei groen, dan staat de link in [LINKS.md](LINKS.md).
 
 Je mag meerdere mp4's aan één release hangen. Ze worden dan allemaal verwerkt.
 
@@ -29,10 +29,14 @@ Je mag meerdere mp4's aan één release hangen. Ze worden dan allemaal verwerkt.
 `.../p/deloitte-25-aug/` en staat "Deloitte - 25 aug" op het startscherm. De tag
 van de release doet er verder niet toe; die moet alleen uniek zijn.
 
-| Bestand dat je bijvoegt      | Wordt                                                     |
-| ---------------------------- | --------------------------------------------------------- |
-| `Deloitte - 25 aug.mp4`      | `.../p/deloitte-25-aug/`, startscherm "Deloitte - 25 aug"  |
-| `Brookz_27 aug - trim.mp4`   | `.../p/brookz-27-aug/`, startscherm "Brookz 27 aug"        |
+| Bestand dat je bijvoegt      | Wordt                                                              |
+| ---------------------------- | ------------------------------------------------------------------ |
+| `Deloitte - 25 aug.mp4`      | `.../p/deloitte-25-aug-a1b2c3d4/`, startscherm "Deloitte - 25 aug"  |
+| `Brookz_27 aug - trim.mp4`   | `.../p/brookz-27-aug-e5f6a7b8/`, startscherm "Brookz 27 aug"        |
+
+Achter de naam komt een willekeurig staartje van acht tekens. Dat is er zodat
+iemand die één link heeft de andere niet kan raden — zie *Wie kan wat zien*
+hieronder.
 
 Onderstrepingstekens worden spaties en een `- trim` achter de naam gaat eraf,
 zodat je exports rechtstreeks kunt bijvoegen.
@@ -87,6 +91,32 @@ De verhouding van de kolom wordt niet in de pagina gebakken maar in de browser
 uit de video zelf gelezen. Een andere `kolom.mp4` in een bestaande map zetten is
 dus genoeg om die preview te vervangen.
 
+## Wie kan wat zien
+
+De previews zijn bedoeld om door te sturen naar opdrachtgevers. Een
+opdrachtgever hoort daarbij alleen de kolom van zijn eigen evenement te zien,
+niet die van andere klanten. Daarvoor is dit geregeld:
+
+- **Geen overzichtspagina op de site.** Knipt iemand het pad van zijn link af,
+  dan komt hij op een pagina zonder enige lijst. Het overzicht staat in
+  [LINKS.md](LINKS.md), in de repository, en is dus alleen te zien door wie
+  hier toegang toe heeft.
+- **Links zijn niet te raden.** Elke preview heeft een willekeurig staartje.
+  Wie `.../p/brookz-27-aug-3412b33d/` heeft, komt niet zomaar op de link van
+  een andere klant.
+- **Geen zoekmachines.** `robots.txt` sluit de hele site af en elke pagina
+  draagt een `noindex`. De previews komen dus niet in Google terecht.
+
+Wat dit **niet** is: een slot. Iedereen die de link krijgt kan hem openen en
+doorsturen. Dat is de bedoeling — de opdrachtgever moet hem immers zonder
+inloggen kunnen bekijken — maar reken er niet op dat een link privé blijft.
+
+Let ook op de zichtbaarheid van de repository zelf. Staat die op **public**,
+dan kan iedereen op github.com door `docs/p/` bladeren, de releases bekijken en
+de commit-historie lezen. Daar staan alle klantnamen in, hoe onraadbaar de
+links ook zijn. Wil je dat niet, dan moet de repository op **private**; dat
+vraagt wel een betaald GitHub-plan om Pages te laten werken.
+
 ## Instellingen
 
 Alles staat in [`config.json`](config.json):
@@ -103,24 +133,26 @@ Alles staat in [`config.json`](config.json):
 
 ## Een preview weghalen
 
-Verwijder de map onder `docs/p/` via github.com. De overzichtspagina wordt bij
-de eerstvolgende workflow automatisch bijgewerkt. Doe dit met previews van
+Verwijder de map onder `docs/p/` via github.com. `LINKS.md` wordt bij de
+eerstvolgende workflow automatisch bijgewerkt. Doe dit met previews van
 afgelopen evenementen: elke preview kost ongeveer 10 MB en die tellen op.
 
 ## Opbouw van de repository
 
 ```
 docs/                     wat er op GitHub Pages komt te staan
-  index.html              overzichtspagina (wordt gegenereerd)
+  index.html              voorpagina zonder lijst (wordt gegenereerd)
+  robots.txt              houdt zoekmachines buiten de deur
   assets/
     viewer.js             de 3D-kolom
     nbc.css               huisstijl
     vendor/three/         three.js, meegeleverd zodat er geen CDN nodig is
   p/<naam>/               één preview: kolom.mp4 + index.html + meta.json
+LINKS.md                  alle links, wordt gegenereerd
 tools/
   build.mjs               comprimeert en genereert de pagina's
   template-preview.html   sjabloon voor één preview
-  template-index.html     sjabloon voor het overzicht
+  template-index.html     sjabloon voor de voorpagina
 config.json               de instellingen hierboven
 legacy/                   de oude Netlify-versie, zie hieronder
 ```
