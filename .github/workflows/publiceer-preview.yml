@@ -1,0 +1,131 @@
+name: Preview bouwen en publiceren
+
+# Draait als er iets in docs/ verandert (bijvoorbeeld een nieuwe video die je
+# via github.com in docs/p/ hebt gezet), en handmatig via "Run workflow" voor
+# video's die te groot zijn voor de upload-knop van github.com.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'tools/**'
+      - 'config.json'
+      - '.github/workflows/publiceer-preview.yml'
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: 'Link naar de ledkolom-video (leeglaten als je hem al in docs/p/ hebt gezet)'
+        required: false
+        default: ''
+      naam:
+        description: 'Naam op het startscherm, bijvoorbeeld: Deloitte - 25 aug'
+        required: false
+        default: ''
+
+permissions:
+  contents: write   # om de gegenereerde pagina's terug te committen
+  pages: write      # om naar GitHub Pages te publiceren
+  id-token: write
+
+# nooit twee builds tegelijk: die zouden elkaars commit overschrijven
+concurrency:
+  group: kolom-preview
+  cancel-in-progress: false
+
+jobs:
+  bouwen:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Repository ophalen
+        uses: actions/checkout@v4
+
+      - name: ffmpeg klaarzetten
+        run: |
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -version | head -1
+
+      - name: Node klaarzetten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # invoer via de omgeving, niet rechtstreeks in het commando: een naam met
+      # een aanhalingsteken erin mag geen shell-commando kunnen worden
+      - name: Preview(s) bouwen
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VIDEO_URL: ${{ inputs.video_url }}
+          NAAM: ${{ inputs.naam }}
+        run: |
+          if [ -n "$VIDEO_URL" ]; then
+            if [ -n "$NAAM" ]; then
+              node tools/build.mjs add --video "$VIDEO_URL" --name "$NAAM"
+            else
+              node tools/build.mjs add --video "$VIDEO_URL"
+            fi
+          else
+            node tools/build.mjs scan
+          fi
+
+      - name: Resultaat terugzetten in de repository
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A docs
+          if git diff --cached --quiet; then
+            echo "Niets veranderd, geen commit nodig."
+            exit 0
+          fi
+          git commit -m "Preview(s) bijgewerkt"
+          for poging in 1 2 3; do
+            if git push; then
+              exit 0
+            fi
+            echo "Push mislukt, iemand anders was net sneller. Poging $poging."
+            git fetch --deepen=50 origin main 2>/dev/null || git fetch origin main
+            git rebase origin/main || {
+              echo "Rebase lukt niet, handmatig nakijken."
+              exit 1
+            }
+            sleep $((poging * 3))
+          done
+          echo "Kon het resultaat na 3 pogingen niet pushen."
+          exit 1
+
+      - name: Pages configureren
+        uses: actions/configure-pages@v5
+
+      - name: Site inpakken
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Publiceren naar GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Links op een rij zetten
+        env:
+          BASIS: ${{ steps.deploy.outputs.page_url }}
+        run: |
+          node - <<'JS' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require('fs');
+          const basis = process.env.BASIS || '';
+          const dir = 'docs/p';
+          const mappen = fs.existsSync(dir)
+            ? fs.readdirSync(dir).filter((d) => fs.existsSync(`${dir}/${d}/meta.json`))
+            : [];
+          console.log('## Previews staan online\n');
+          console.log(`Overzicht: ${basis}\n`);
+          for (const map of mappen) {
+            const m = JSON.parse(fs.readFileSync(`${dir}/${map}/meta.json`, 'utf8'));
+            const mb = (m.video.bytes / 1048576).toFixed(1);
+            console.log(`- **${m.name}** — ${basis}p/${map}/ (${mb} MB)`);
+          }
+          JS
