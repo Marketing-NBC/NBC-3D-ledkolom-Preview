@@ -20,7 +20,7 @@ tot 2 GB zijn.
 2. Vul bij *Choose a tag* een nieuwe naam in, bijvoorbeeld `deloitte-25-aug`, en klik **Create new tag**.
 3. Sleep de mp4 in het vak **Attach binaries**. Wacht tot de upload klaar is.
 4. Klik **Publish release**.
-5. Wacht een paar minuten. Onder **Actions** zie je de voortgang; als de balk groen is staat de link in het [overzicht](https://marketing-nbc.github.io/NBC-3D-ledkolom-Preview/).
+5. Wacht een paar minuten. Onder **Actions** lopen er twee taken achter elkaar: eerst *Release verwerken*, daarna *Preview bouwen en publiceren*. Zijn ze allebei groen, dan staat de link in het [overzicht](https://marketing-nbc.github.io/NBC-3D-ledkolom-Preview/).
 
 Je mag meerdere mp4's aan één release hangen. Ze worden dan allemaal verwerkt.
 
@@ -61,9 +61,17 @@ wat er op het startscherm moet komen.
 
 ## Wat er onder water gebeurt
 
-De workflow [`publiceer-preview.yml`](.github/workflows/publiceer-preview.yml)
-draait `tools/build.mjs`. Dat script haalt de video op uit de release en gaat
-er dan mee aan de slag:
+Het werk is over twee workflows verdeeld, en daar is een reden voor. Een
+release draait op de tag en niet op `main`, en het `github-pages`-environment
+laat alleen deployments vanaf de standaardbranch toe. Publiceren vanaf een tag
+wordt dus geweigerd. Daarom doet
+[`verwerk-release.yml`](.github/workflows/verwerk-release.yml) het zware werk en
+commit het resultaat naar `main`, waarna
+[`publiceer-preview.yml`](.github/workflows/publiceer-preview.yml) het oppakt en
+online zet.
+
+Het rekenwerk zelf zit in `tools/build.mjs`. Dat script haalt de video op uit de
+release en gaat er dan mee aan de slag:
 
 1. het leest breedte, hoogte en duur van de video met `ffprobe`;
 2. controleert of het echt een kolomvideo is — vier zijden naast elkaar, dus

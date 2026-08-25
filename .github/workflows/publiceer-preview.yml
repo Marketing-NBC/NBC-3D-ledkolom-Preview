@@ -1,11 +1,12 @@
 name: Preview bouwen en publiceren
 
-# Hoofdweg: je publiceert een release met de mp4 als bijlage. Daarnaast draait
-# hij als er iets in docs/ verandert (een kleine video die je rechtstreeks in
-# docs/p/ hebt gezet), en handmatig via "Run workflow" met een link.
+# Zet de site online. Draait na "Release verwerken" (via workflow_run, want
+# dat gebeurt altijd op de standaardbranch en dus mag deze job wel naar Pages
+# publiceren), als er iets in docs/ verandert, en handmatig via "Run workflow".
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["Release verwerken"]
+    types: [completed]
   push:
     branches: [main]
     paths:
@@ -37,12 +38,15 @@ concurrency:
 jobs:
   bouwen:
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - name: Repository ophalen
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: ffmpeg klaarzetten
         run: |
@@ -63,14 +67,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
           VIDEO_URL: ${{ inputs.video_url }}
           NAAM: ${{ inputs.naam }}
         run: |
-          if [ -n "$RELEASE_TAG" ]; then
-            # een release is gepubliceerd: alle video's die eraan hangen verwerken
-            node tools/build.mjs release --tag "$RELEASE_TAG"
-          elif [ -n "$VIDEO_URL" ]; then
+          if [ -n "$VIDEO_URL" ]; then
             if [ -n "$NAAM" ]; then
               node tools/build.mjs add --video "$VIDEO_URL" --name "$NAAM"
             else

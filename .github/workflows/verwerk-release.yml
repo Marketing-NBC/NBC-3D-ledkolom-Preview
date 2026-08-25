@@ -1,0 +1,71 @@
+name: Release verwerken
+
+# Draait als je een release publiceert met een of meer mp4's eraan.
+#
+# Deze workflow publiceert bewust NIET naar GitHub Pages. Een release draait
+# op de tag en niet op main, en het github-pages-environment laat alleen
+# deployments vanaf de standaardbranch toe. Daarom doet deze workflow alleen
+# het zware werk en commit het resultaat naar main; "Preview bouwen en
+# publiceren" pakt het daarna op en zet het online.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: kolom-preview
+  cancel-in-progress: false
+
+jobs:
+  verwerken:
+    runs-on: ubuntu-latest
+    steps:
+      # let op: main uitchecken, niet de tag - daar wordt straks op gecommit
+      - name: Repository ophalen
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: ffmpeg klaarzetten
+        run: |
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -version | head -1
+
+      - name: Node klaarzetten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Video's uit de release verwerken
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: node tools/build.mjs release --tag "$RELEASE_TAG"
+
+      - name: Resultaat terugzetten in de repository
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A docs
+          if git diff --cached --quiet; then
+            echo "Niets veranderd, geen commit nodig."
+            exit 0
+          fi
+          git commit -m "Preview(s) uit release ${{ github.event.release.tag_name }}"
+          for poging in 1 2 3; do
+            if git push origin main; then
+              exit 0
+            fi
+            echo "Push mislukt, iemand anders was net sneller. Poging $poging."
+            git fetch --deepen=50 origin main 2>/dev/null || git fetch origin main
+            git rebase origin/main || { echo "Rebase lukt niet, handmatig nakijken."; exit 1; }
+            sleep $((poging * 3))
+          done
+          echo "Kon het resultaat na 3 pogingen niet pushen."
+          exit 1
