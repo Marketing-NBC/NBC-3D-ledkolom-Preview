@@ -56,10 +56,18 @@ function slugify(s) {
 }
 
 // "Deloitte_25 aug - trim.mp4" -> "Deloitte 25 aug"
+// "Brookz.-.27.aug.mp4"          -> "Brookz - 27 aug"
+//
+// GitHub vervangt spaties door punten in de naam van een release-bijlage.
+// Staat er nergens een spatie maar wel een punt, dan zijn die punten dus de
+// spaties van de oorspronkelijke bestandsnaam. Zit er wel een spatie in, dan
+// laten we punten met rust: die horen er dan bij.
 function displayNameFromFile(file) {
   let n = path.basename(file, path.extname(file));
+  if (!n.includes(' ') && n.includes('.')) n = n.replace(/\.+/g, ' ');
+  n = n.replace(/_+/g, ' ');
   n = n.replace(/\s*-?\s*trim\s*$/i, '');
-  n = n.replace(/_+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  n = n.replace(/\s{2,}/g, ' ').trim();
   return n;
 }
 
