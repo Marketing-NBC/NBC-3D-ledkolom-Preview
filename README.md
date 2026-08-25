@@ -16,7 +16,7 @@ Ledkolom-exports zijn al snel een paar honderd MB. De upload-knop van
 github.com stopt bij 25 MB, dus loopt het via een release: daar mag een bestand
 tot 2 GB zijn.
 
-1. Ga naar **Releases** (rechterkolom op de voorpagina) → **Draft a new release**.
+1. Open [**het release-formulier**](https://github.com/Marketing-NBC/NBC-3D-ledkolom-Preview/releases/new). (Vanaf de voorpagina: rechterkolom, onder *About*, bij **Releases** → *Create a new release*.)
 2. Vul bij *Choose a tag* een nieuwe naam in, bijvoorbeeld `deloitte-25-aug`, en klik **Create new tag**.
 3. Sleep de mp4 in het vak **Attach binaries**. Wacht tot de upload klaar is.
 4. Klik **Publish release**.
