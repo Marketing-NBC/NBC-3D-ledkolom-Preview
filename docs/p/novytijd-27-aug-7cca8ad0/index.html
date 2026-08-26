@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Novytijd - 27 aug · NBC 3D Kolom</title>
+<meta name="robots" content="noindex">
+<meta property="og:title" content="Novytijd - 27 aug">
+<meta property="og:description" content="3D-preview van de NBC ledkolom">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/nbc.css">
+</head>
+<body class="viewer">
+
+<div id="logo"><img src="../../assets/nbc-logo.svg" alt="NBC Events"></div>
+
+<div id="btns">
+  <button id="spin" class="pill">Auto-draaien: aan</button>
+</div>
+
+<canvas id="c" data-video="kolom.mp4"></canvas>
+<div id="vignette"></div>
+<div id="hint">Sleep om te draaien · scroll om te zoomen</div>
+
+<div id="start">
+  <div class="projname" style="display:block">Novytijd - 27 aug</div>
+  <div class="play"><span class="tri">&#9654;</span><span>Bekijk de 3D-kolom</span></div>
+  <small>daarna slepen om rond te draaien</small>
+  <div class="brand">NBC EVENTS · RUIMTE VOOR MAGIE</div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "../../assets/vendor/three/three.module.js",
+  "three/addons/": "../../assets/vendor/three/addons/"
+}}
+</script>
+<script type="module" src="../../assets/viewer.js"></script>
+</body>
+</html>

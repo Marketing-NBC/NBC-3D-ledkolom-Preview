@@ -8,5 +8,6 @@ dus wie er één heeft komt niet bij de rest.
 
 | Preview | Link | Duur | Grootte | Bijgewerkt |
 | --- | --- | --- | --- | --- |
+| Novytijd - 27 aug | https://marketing-nbc.github.io/NBC-3D-ledkolom-Preview/p/novytijd-27-aug-7cca8ad0/ | 60 sec | 10.2 MB | 26 augustus 2026 |
 | ASR - 2 sep | https://marketing-nbc.github.io/NBC-3D-ledkolom-Preview/p/asr-2-sep-5f600df2/ | 60 sec | 10.2 MB | 25 augustus 2026 |
 | Brookz - 27 aug | https://marketing-nbc.github.io/NBC-3D-ledkolom-Preview/p/brookz-27-aug-3412b33d/ | 60 sec | 10.2 MB | 25 augustus 2026 |
