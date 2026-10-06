@@ -8,6 +8,7 @@ dus wie er één heeft komt niet bij de rest.
 
 | Preview | Link | Duur | Grootte | Bijgewerkt |
 | --- | --- | --- | --- | --- |
+| Ledkolom - Sibon - 14 okt | https://marketing-nbc.github.io/NBC-3D-ledkolom-Preview/p/ledkolom-sibon-14-okt-49ae1c93/ | 60 sec | 10.3 MB | 6 oktober 2026 |
 | LED-Kolom-UWV-29 sept | https://marketing-nbc.github.io/NBC-3D-ledkolom-Preview/p/led-kolom-uwv-29-sept-7167c083/ | 60 sec | 10.2 MB | 28 september 2026 |
 | Novytijd - 24 sept - Ledkolom | https://marketing-nbc.github.io/NBC-3D-ledkolom-Preview/p/novytijd-24-sept-ledkolom-429e7e3a/ | 60 sec | 10.3 MB | 7 september 2026 |
 | Novytijd - 27 aug | https://marketing-nbc.github.io/NBC-3D-ledkolom-Preview/p/novytijd-27-aug-7cca8ad0/ | 60 sec | 10.2 MB | 26 augustus 2026 |
