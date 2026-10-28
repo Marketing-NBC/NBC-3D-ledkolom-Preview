@@ -1,7 +1,9 @@
 # NBC 3D Ledkolom Preview
 
 Maakt van een LED-kolomvideo een deelbare 3D-preview: de klant opent een link,
-ziet de kolom in 3D en kan hem ronddraaien.
+ziet de kolom in 3D en kan hem ronddraaien. Rechts staat een foto van de foyer
+van NBC met de video op de ledkolommen; met een schuif in het midden wissel je
+tussen de 3D-kolom op volledig scherm en die foto.
 
 Alles gebeurt online, in deze repository. Je hoeft niets te installeren en er
 hoeft niets op een eigen computer te draaien.
@@ -83,13 +85,47 @@ release en gaat er dan mee aan de slag:
    plaats van er een platgeslagen kolom van te maken;
 3. comprimeert de video in twee passes naar het budget uit `config.json`
    (standaard 10,5 MB), zodat de preview ook op 4G vlot laadt;
-4. zet er een preview-pagina naast en werkt de overzichtspagina bij;
-5. gooit het geüploade bronbestand weg, zodat de repository klein blijft;
-6. publiceert `docs/` naar GitHub Pages.
+4. maakt de foto op locatie (zie hieronder);
+5. zet er een preview-pagina naast en werkt de overzichtspagina bij;
+6. gooit het geüploade bronbestand weg, zodat de repository klein blijft;
+7. publiceert `docs/` naar GitHub Pages.
 
 De verhouding van de kolom wordt niet in de pagina gebakken maar in de browser
 uit de video zelf gelezen. Een andere `kolom.mp4` in een bestaande map zetten is
 dus genoeg om die preview te vervangen.
+
+### De foto op locatie
+
+[`tools/foto.mjs`](tools/foto.mjs) pakt een still uit de video en zet die in
+perspectief op de vier ledkolommen van
+[`tools/foto/nbc-foyer.jpg`](tools/foto/nbc-foyer.jpg). Dat wordt `foto.jpg`
+naast de video, zo'n 450 kB. De still komt uit het midden van de video: van een
+paar kandidaten wint het drukste beeld, zodat het geen zwart begin of een
+witte flits wordt.
+
+**Zelf het moment kiezen.** Staat er niet het goede beeld op de foto, dan kies
+je zelf de seconde uit de video:
+
+1. Ga naar **Actions → Preview bouwen en publiceren → Run workflow**.
+2. Plak bij *foto_preview* de link van de preview (uit [LINKS.md](LINKS.md)),
+   of de naam zoals die op het startscherm staat.
+3. Vul bij *foto_moment* de seconde in: `12`, `12,5` of `0:12`.
+4. Klik **Run workflow**. Na een paar minuten staat de nieuwe foto online, op
+   dezelfde link.
+
+Laat je *foto_moment* leeg, dan kiest het script weer zelf. Het gekozen moment
+blijft bewaard als er later een nieuwe versie van dezelfde video komt; het
+staat als `fotoMoment` in de `meta.json` van de preview.
+
+Waar de kolommen op de foto staan, en wat er voor ze staat (een stoel, een
+tafel met vaas, de plantenbak), staat in
+[`tools/foto/kolommen.json`](tools/foto/kolommen.json), in pixels van de foto.
+Wijzig je daar iets, of vervang je de foto, dan maakt de volgende build de foto
+bij álle previews opnieuw, ook bij links die al verstuurd zijn. Een andere foto
+betekent wel opnieuw opmeten: de hoekpunten horen bij deze ene opname.
+
+Ontbreekt `foto.jpg` of lukt het maken niet, dan toont de pagina gewoon alleen
+de 3D-kolom, zonder schuif.
 
 ## Wie kan wat zien
 
@@ -135,7 +171,7 @@ Alles staat in [`config.json`](config.json):
 
 Verwijder de map onder `docs/p/` via github.com. `LINKS.md` wordt bij de
 eerstvolgende workflow automatisch bijgewerkt. Doe dit met previews van
-afgelopen evenementen: elke preview kost ongeveer 10 MB en die tellen op.
+afgelopen evenementen: elke preview kost ongeveer 11 MB en die tellen op.
 
 ## Opbouw van de repository
 
@@ -147,15 +183,22 @@ docs/                     wat er op GitHub Pages komt te staan
     viewer.js             de 3D-kolom
     nbc.css               huisstijl
     vendor/three/         three.js, meegeleverd zodat er geen CDN nodig is
-  p/<naam>/               één preview: kolom.mp4 + index.html + meta.json
+  p/<naam>/               één preview: kolom.mp4 + foto.jpg + index.html + meta.json
 LINKS.md                  alle links, wordt gegenereerd
 tools/
   build.mjs               comprimeert en genereert de pagina's
+  foto.mjs                zet een still van de video op de foyer-foto
+  foto/                   die foto en waar de kolommen erop staan
   template-preview.html   sjabloon voor één preview
   template-index.html     sjabloon voor de voorpagina
 config.json               de instellingen hierboven
 legacy/                   de oude Netlify-versie, zie hieronder
 ```
+
+## Voor later
+
+- **Bewegend beeld op de foto op locatie.** Nu staat er een still op de
+  kolommen; de video zelf laten meelopen kan ook, in de browser.
 
 ## De oude versie
 

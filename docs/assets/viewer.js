@@ -8,6 +8,11 @@
   video zelf gelezen (videoWidth / videoHeight), dus er hoeft niets
   vooraf te worden uitgerekend of in de pagina gebakken. Een andere
   video in dezelfde map neerzetten is genoeg.
+
+  Staat er een foto.jpg naast (de kolom in de NBC-foyer, gemaakt door
+  tools/foto.mjs), dan komt die rechts in beeld met een schuif ertussen.
+  Helemaal naar rechts is alleen de 3D-kolom, helemaal naar links alleen
+  de foto.
 */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -43,6 +48,8 @@ function begin(){
   }
   startEl.style.display = 'none';
   video.play().catch(() => {});
+  gestart = true;
+  toonFoto();
 }
 startEl.addEventListener('click', begin);
 startEl.addEventListener('touchend', (e) => { e.preventDefault(); begin(); });
@@ -140,7 +147,6 @@ function buildColumn(){
   orbit.maxDistance = H * 6;
 
   frame();
-  addEventListener('resize', frame);
 
   if (spinBtn) {
     spinBtn.onclick = () => {
@@ -158,25 +164,156 @@ function buildColumn(){
 
 // camera zo zetten dat de hele kolom in beeld past, ook staand op mobiel
 function frame(){
+  if (!webglReady) { verdeel(); return; }
+
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 
-  if (!column) return;
+  if (column) {
+    const vFov = camera.fov * Math.PI / 180;
+    let dist = (faceRatio * 0.62) / Math.tan(vFov / 2);   // hoogte passend maken
+    if (camera.aspect < 1) dist *= 1 + (1 - camera.aspect) * 0.30;  // staand: iets ruimer
 
-  const vFov = camera.fov * Math.PI / 180;
-  let dist = (faceRatio * 0.62) / Math.tan(vFov / 2);   // hoogte passend maken
-  if (camera.aspect < 1) dist *= 1 + (1 - camera.aspect) * 0.30;  // staand: iets ruimer
-
-  const dir = new THREE.Vector3(0.37, 0.06, 0.93).normalize();
-  camera.position.copy(dir.multiplyScalar(dist));
-  orbit.update();
+    const dir = new THREE.Vector3(0.37, 0.06, 0.93).normalize();
+    camera.position.copy(dir.multiplyScalar(dist));
+    orbit.update();
+  }
+  verdeel();
 }
+addEventListener('resize', frame);
 
 function loop(){
   requestAnimationFrame(loop);
   if (spin && column) column.rotation.y += 0.005;
   orbit.update();
-  renderer.render(scene, camera);
+  if (deel > 0) renderer.render(scene, camera);
+}
+
+// ---- 4. foto op locatie, met een schuif ernaast ---------------------
+const fotoEl   = document.getElementById('foto');
+const fotoImg  = fotoEl && fotoEl.querySelector('img');
+const schuifEl = document.getElementById('schuif');
+
+// waar de middelste kolom op de foto staat, als deel van de breedte; daar
+// blijft de foto op gericht als er maar een stuk van in beeld is
+const FOTO_FOCUS = 0.477;
+// past de foto niet in de hoogte, dan gaat er vooral van de onderkant af:
+// de kap van de kolom blijft dan in beeld
+const FOTO_BOVEN = 0.2;
+// smaller dan dit is er geen plek voor de knop en de uitleg naast het logo
+const SMAL_PX = 340;
+// na het starten schuift de foto vanzelf tot hier in beeld
+const BEGIN_DEEL = 0.5;
+
+let deel = 1;          // deel van de breedte voor de 3D-kolom: 1 = alleen 3D, 0 = alleen foto
+let fotoKlaar = false, gestart = false, getoond = false, animatie = 0;
+
+function geenFoto(){
+  if (fotoEl) fotoEl.remove();
+  if (schuifEl) schuifEl.remove();
+  fotoKlaar = false;
+  zet(1);
+}
+
+if (fotoImg && schuifEl && !params.get('v')) {
+  // een andere video via ?v= hoort niet bij deze foto
+  const geladen = () => { fotoKlaar = true; toonFoto(); };
+  if (fotoImg.complete) {
+    // al klaar voordat dit script draaide, gelukt of niet
+    if (fotoImg.naturalWidth) geladen(); else geenFoto();
+  } else {
+    fotoImg.addEventListener('load', geladen);
+    fotoImg.addEventListener('error', geenFoto);
+  }
+} else {
+  geenFoto();
+}
+
+function toonFoto(){
+  if (!fotoKlaar || !gestart || getoond) return;
+  getoond = true;
+  fotoEl.hidden = false;
+  schuifEl.hidden = false;
+  document.body.classList.add('met-foto');
+  verdeel();
+  // eerst even de kolom, dan schuift de foto erbij: zo ziet men dat het kan
+  setTimeout(() => schuifNaar(BEGIN_DEEL), 700);
+}
+
+function zet(d){
+  deel = Math.min(1, Math.max(0, d));
+  verdeel();
+}
+
+function verdeel(){
+  const W = innerWidth, H = innerHeight;
+  const px = Math.round(deel * W);
+  const root = document.documentElement.style;
+  root.setProperty('--split', px + 'px');
+  root.setProperty('--rest', (W - px) + 'px');
+  document.body.classList.toggle('smal', px < SMAL_PX);
+  document.body.classList.toggle('smalfoto', W - px < 200);
+  if (schuifEl) schuifEl.setAttribute('aria-valuenow', String(Math.round(deel * 100)));
+
+  if (fotoKlaar) {
+    // schermvullend, en zo verschoven dat de middelste kolom midden in het
+    // zichtbare stuk staat, zonder dat er een lege rand ontstaat
+    const iw = fotoImg.naturalWidth, ih = fotoImg.naturalHeight;
+    const s  = Math.max(W / iw, H / ih);
+    const bw = iw * s, bh = ih * s;
+    const gewenst = px + (W - px) / 2 - FOTO_FOCUS * bw;
+    const links   = Math.min(px, Math.max(W - bw, gewenst));
+    fotoImg.style.width  = bw + 'px';
+    fotoImg.style.height = bh + 'px';
+    fotoImg.style.left   = links + 'px';
+    fotoImg.style.top    = (H - bh) * FOTO_BOVEN + 'px';
+  }
+
+  // de kolom in het midden van zijn eigen stuk scherm houden
+  if (webglReady) camera.setViewOffset(W, H, (W - px) / 2, 0, W, H);
+}
+
+function schuifNaar(doel){
+  cancelAnimationFrame(animatie);
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { zet(doel); return; }
+  const van = deel, start = performance.now(), duur = 900;
+  const stap = (nu) => {
+    const t = Math.min(1, (nu - start) / duur);
+    zet(van + (doel - van) * (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2));
+    if (t < 1) animatie = requestAnimationFrame(stap);
+  };
+  animatie = requestAnimationFrame(stap);
+}
+
+if (schuifEl) {
+  schuifEl.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    cancelAnimationFrame(animatie);
+    schuifEl.setPointerCapture(e.pointerId);
+    schuifEl.classList.add('sleept');
+  });
+  schuifEl.addEventListener('pointermove', (e) => {
+    if (schuifEl.hasPointerCapture(e.pointerId)) zet(e.clientX / innerWidth);
+  });
+  const los = (e) => {
+    if (!schuifEl.hasPointerCapture(e.pointerId)) return;
+    schuifEl.releasePointerCapture(e.pointerId);
+    schuifEl.classList.remove('sleept');
+    // vlak bij de rand: helemaal 3D of helemaal foto
+    if (deel < 0.04) zet(0);
+    if (deel > 0.96) zet(1);
+  };
+  schuifEl.addEventListener('pointerup', los);
+  schuifEl.addEventListener('pointercancel', los);
+  schuifEl.addEventListener('keydown', (e) => {
+    const stappen = { ArrowLeft: -0.05, ArrowDown: -0.05, ArrowRight: 0.05, ArrowUp: 0.05 };
+    if (e.key in stappen) zet(deel + stappen[e.key]);
+    else if (e.key === 'Home') zet(0);
+    else if (e.key === 'End') zet(1);
+    else return;
+    cancelAnimationFrame(animatie);
+    e.preventDefault();
+  });
 }
