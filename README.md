@@ -103,6 +103,20 @@ naast de video, zo'n 450 kB. De still komt uit het midden van de video: van een
 paar kandidaten wint het drukste beeld, zodat het geen zwart begin of een
 witte flits wordt.
 
+**Zelf het moment kiezen.** Staat er niet het goede beeld op de foto, dan kies
+je zelf de seconde uit de video:
+
+1. Ga naar **Actions → Preview bouwen en publiceren → Run workflow**.
+2. Plak bij *foto_preview* de link van de preview (uit [LINKS.md](LINKS.md)),
+   of de naam zoals die op het startscherm staat.
+3. Vul bij *foto_moment* de seconde in: `12`, `12,5` of `0:12`.
+4. Klik **Run workflow**. Na een paar minuten staat de nieuwe foto online, op
+   dezelfde link.
+
+Laat je *foto_moment* leeg, dan kiest het script weer zelf. Het gekozen moment
+blijft bewaard als er later een nieuwe versie van dezelfde video komt; het
+staat als `fotoMoment` in de `meta.json` van de preview.
+
 Waar de kolommen op de foto staan, en wat er voor ze staat (een stoel, een
 tafel met vaas, de plantenbak), staat in
 [`tools/foto/kolommen.json`](tools/foto/kolommen.json), in pixels van de foto.
@@ -180,6 +194,11 @@ tools/
 config.json               de instellingen hierboven
 legacy/                   de oude Netlify-versie, zie hieronder
 ```
+
+## Voor later
+
+- **Bewegend beeld op de foto op locatie.** Nu staat er een still op de
+  kolommen; de video zelf laten meelopen kan ook, in de browser.
 
 ## De oude versie
 

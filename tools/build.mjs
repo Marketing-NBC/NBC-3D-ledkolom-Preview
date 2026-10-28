@@ -11,6 +11,10 @@
     node tools/build.mjs add --video <pad-of-url> [--name "Klant - datum"]
         Zelfde, maar voor één video die van buiten de repo komt.
 
+    node tools/build.mjs moment --preview <link-of-naam> [--sec 12]
+        Kiest zelf het moment uit de video voor de foto op locatie.
+        Zonder --sec kiest het script weer zelf.
+
   Alle modes zetten daarna bij elke preview de pagina opnieuw neer en maken
   waar nodig de foto van de kolom in de NBC-foyer (zie tools/foto.mjs), en
   bouwen de overzichtspagina docs/index.html opnieuw.
@@ -182,6 +186,10 @@ function makePreview(srcFile, displayName) {
     fs.copyFileSync(srcFile, dest);
   }
 
+  // een zelf gekozen moment voor de foto blijft staan bij een nieuwe versie
+  let fotoMoment;
+  try { fotoMoment = JSON.parse(fs.readFileSync(path.join(dir, 'meta.json'), 'utf8')).fotoMoment; } catch {}
+
   const finalInfo = probe(dest);
   const meta = {
     slug,
@@ -194,6 +202,7 @@ function makePreview(srcFile, displayName) {
       duration: Math.round(finalInfo.duration * 10) / 10,
     },
   };
+  if (fotoMoment !== undefined) meta.fotoMoment = fotoMoment;
   fotoBijwerken(dir, meta);
   fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(meta, null, 2) + '\n');
   schrijfPagina(dir, meta);
@@ -217,11 +226,18 @@ function schrijfPagina(dir, meta) {
 // door: de pagina laat de schuif dan weg en toont alleen de 3D-kolom.
 function fotoBijwerken(dir, meta) {
   const doel = path.join(dir, 'foto.jpg');
-  if (meta.foto && meta.foto.versie === FOTO_VERSIE && fs.existsSync(doel)) return false;
+  // "fotoMoment" in meta.json: de seconde die iemand zelf heeft gekozen
+  const zelf  = typeof meta.fotoMoment === 'number';
+  const klopt = meta.foto && meta.foto.versie === FOTO_VERSIE && fs.existsSync(doel) &&
+                Boolean(meta.foto.zelf) === zelf && (!zelf || meta.foto.gevraagd === meta.fotoMoment);
+  if (klopt) return false;
   try {
-    const moment = maakFoto(path.join(dir, 'kolom.mp4'), doel);
-    meta.foto = { versie: FOTO_VERSIE, moment };
-    console.log(`  foto in de foyer gemaakt voor ${path.basename(dir)} (still op ${moment} sec)`);
+    const moment = maakFoto(path.join(dir, 'kolom.mp4'), doel, zelf ? meta.fotoMoment : undefined);
+    meta.foto = zelf
+      ? { versie: FOTO_VERSIE, moment, zelf: true, gevraagd: meta.fotoMoment }
+      : { versie: FOTO_VERSIE, moment };
+    const hoe = zelf ? 'zelf gekozen' : 'automatisch gekozen';
+    console.log(`  foto in de foyer gemaakt voor ${path.basename(dir)} (still op ${moment} sec, ${hoe})`);
   } catch (e) {
     console.error(`  LET OP: foto in de foyer mislukt voor ${path.basename(dir)}: ${e.message}`);
     fs.rmSync(doel, { force: true });
@@ -309,6 +325,56 @@ function buildLinks(basisUrl) {
   regels.push('');
   fs.writeFileSync(path.join(ROOT, 'LINKS.md'), regels.join('\n'));
   console.log(`overzicht bijgewerkt: ${items.length} preview(s) in LINKS.md`);
+}
+
+// ---------- zelf het moment voor de foto kiezen ----------------------
+
+// "12", "12.5", "12,5", "0:12" of "1:05" -> seconden; leeg -> undefined
+function leesSeconden(tekst) {
+  const t = String(tekst ?? '').trim().replace(',', '.');
+  if (!t) return undefined;
+  const m = t.match(/^(?:(\d+):)?(\d+(?:\.\d+)?)$/);
+  if (!m) throw new Error(`"${tekst}" is geen tijd. Gebruik seconden (12 of 12,5) of minuten:seconden (0:12).`);
+  return Math.round(((Number(m[1]) || 0) * 60 + Number(m[2])) * 10) / 10;
+}
+
+// een preview terugvinden aan zijn link, mapnaam of naam op het startscherm
+function vindPreview(zoek) {
+  const z = String(zoek || '').trim();
+  if (!z) throw new Error('Vul in om welke preview het gaat: de link, of de naam op het startscherm.');
+  const mappen = fs.readdirSync(PREVIEWS, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && fs.existsSync(path.join(PREVIEWS, e.name, 'meta.json')))
+    .map((e) => e.name);
+
+  const uitLink = z.replace(/[?#].*$/, '').replace(/\/+$/, '').split('/').pop();
+  if (mappen.includes(uitLink)) return uitLink;
+
+  const basis = slugify(z);
+  const treffers = mappen.filter((m) => {
+    if (m.slice(0, -9) === basis) return true;
+    try { return slugify(JSON.parse(fs.readFileSync(path.join(PREVIEWS, m, 'meta.json'), 'utf8')).name || '') === basis; }
+    catch { return false; }
+  });
+  if (treffers.length === 1) return treffers[0];
+  if (treffers.length > 1) throw new Error(`"${z}" past op meer dan één preview: ${treffers.join(', ')}. Plak de link.`);
+  throw new Error(`Geen preview gevonden voor "${z}". Plak de link uit LINKS.md.`);
+}
+
+function kiesMoment(zoek, sec) {
+  const map = vindPreview(zoek);
+  const metaPath = path.join(PREVIEWS, map, 'meta.json');
+  const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+  const moment = leesSeconden(sec);
+  if (moment === undefined) {
+    delete meta.fotoMoment;
+    console.log(`${meta.name}: het script kiest weer zelf het moment voor de foto.`);
+  } else {
+    const duur = meta.video && meta.video.duration;
+    if (duur && moment > duur) throw new Error(`De video van "${meta.name}" duurt maar ${duur} sec; ${moment} sec bestaat niet.`);
+    meta.fotoMoment = moment;
+    console.log(`${meta.name}: foto op ${moment} sec.`);
+  }
+  fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2) + '\n');
 }
 
 // ---------- losse videobestanden oppikken ----------------------------
@@ -440,8 +506,12 @@ function main() {
     }
   } else if (mode === 'scan') {
     jobs = collectLooseVideos().map((v) => ({ ...v, opruimen: true }));
+  } else if (mode === 'moment') {
+    // de foto zelf wordt hieronder bij "bestaande previews bijwerken" gemaakt
+    kiesMoment(args.preview, args.sec);
+    jobs = collectLooseVideos().map((v) => ({ ...v, opruimen: true }));
   } else {
-    throw new Error(`Onbekende mode "${mode}". Gebruik "release", "add" of "scan".`);
+    throw new Error(`Onbekende mode "${mode}". Gebruik "release", "add", "scan" of "moment".`);
   }
 
   if (jobs.length === 0) console.log("Geen nieuwe video's gevonden.");

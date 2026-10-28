@@ -24,6 +24,14 @@ on:
         description: 'Naam op het startscherm, bijvoorbeeld: Deloitte - 25 aug'
         required: false
         default: ''
+      foto_preview:
+        description: 'Alleen om het moment van de foto op locatie te kiezen: link of naam van de preview'
+        required: false
+        default: ''
+      foto_moment:
+        description: 'Seconde in de video voor die foto, bijvoorbeeld 12 of 0:12 (leeg = het script kiest zelf)'
+        required: false
+        default: ''
 
 permissions:
   contents: write   # om de gegenereerde pagina's terug te committen
@@ -69,8 +77,12 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           VIDEO_URL: ${{ inputs.video_url }}
           NAAM: ${{ inputs.naam }}
+          FOTO_PREVIEW: ${{ inputs.foto_preview }}
+          FOTO_MOMENT: ${{ inputs.foto_moment }}
         run: |
-          if [ -n "$VIDEO_URL" ]; then
+          if [ -n "$FOTO_PREVIEW" ]; then
+            node tools/build.mjs moment --preview "$FOTO_PREVIEW" --sec "$FOTO_MOMENT"
+          elif [ -n "$VIDEO_URL" ]; then
             if [ -n "$NAAM" ]; then
               node tools/build.mjs add --video "$VIDEO_URL" --name "$NAAM"
             else

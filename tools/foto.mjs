@@ -64,10 +64,16 @@ function leesRgb(file, w, h, extra = []) {
 
 // ---------- still kiezen ---------------------------------------------
 
-// Een paar kandidaten uit het midden van de video; de drukste wint. Zo komt
-// er geen zwart begin- of eindbeeld of een witte flits in de foto terecht.
-function kiesStill(video) {
+// Is er een moment opgegeven, dan wordt het dat beeld. Anders een paar
+// kandidaten uit het midden van de video, en de drukste wint. Zo komt er geen
+// zwart begin- of eindbeeld of een witte flits in de foto terecht.
+function kiesStill(video, moment) {
   const { w, h, duur } = afmetingen(video);
+  if (typeof moment === 'number') {
+    // net voor het einde blijven: daar staat soms geen beeld meer
+    const t = Math.min(Math.max(0, moment), Math.max(0, duur - 0.1));
+    return { w, h, t, rgb: leesRgb(video, w, h, ['-ss', String(t)]) };
+  }
   let beste = null;
   for (const fractie of [0.2, 0.35, 0.5, 0.65, 0.8]) {
     const t = Math.round(duur * fractie * 10) / 10;
@@ -197,12 +203,13 @@ function plak(foto, fw, fh, still) {
 
 /**
  * Maakt `doel` (jpg): de foyer-foto met een still uit `video` op de kolommen.
+ * `moment` (seconden) kiest de still zelf; zonder kiest het script er een.
  * Geeft het tijdstip van de gebruikte still terug, in seconden.
  */
-export function maakFoto(video, doel) {
+export function maakFoto(video, doel, moment) {
   const { w: fw, h: fh } = afmetingen(BRON);
   const foto = leesRgb(BRON, fw, fh);
-  const still = kiesStill(video);
+  const still = kiesStill(video, moment);
   plak(foto, fw, fh, still);
   ffmpeg([
     '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', `${fw}x${fh}`, '-i', '-',
