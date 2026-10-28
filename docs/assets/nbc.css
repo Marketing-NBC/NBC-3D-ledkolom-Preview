@@ -36,7 +36,11 @@ body.viewer #c{display:block;width:100%;height:100%;touch-action:none;}
   filter:drop-shadow(0 2px 8px rgba(0,0,0,.4));}
 #logo img{width:100%;height:auto;display:block;}
 
-#btns{position:fixed;top:20px;right:20px;display:flex;gap:10px;z-index:4;}
+[hidden]{display:none!important;}
+
+/* --split is de breedte van de 3D-kolom, --rest die van de foto ernaast;
+   viewer.js zet ze allebei in pixels */
+#btns{position:fixed;top:20px;right:calc(var(--rest,0px) + 20px);display:flex;gap:10px;z-index:4;}
 .pill{background:rgba(22,41,58,.72);color:var(--cream);
   border:1px solid rgba(199,162,74,.45);border-radius:999px;
   padding:10px 18px;font-family:var(--font);font-size:13px;font-weight:500;
@@ -44,8 +48,30 @@ body.viewer #c{display:block;width:100%;height:100%;touch-action:none;}
   text-decoration:none;display:inline-flex;align-items:center;gap:8px;}
 .pill:hover{border-color:var(--gold);color:#fff;background:rgba(22,41,58,.95);}
 
-#hint{position:fixed;left:0;right:0;bottom:22px;text-align:center;z-index:3;
+#hint{position:fixed;left:0;right:var(--rest,0px);bottom:22px;text-align:center;z-index:3;
   color:var(--cream);opacity:.7;font-size:13px;letter-spacing:.4px;pointer-events:none;}
+body.smal #btns, body.smal #hint, body.smalfoto #foto .label{display:none;}
+/* met de schuif in beeld: de knop niet over de schuiflijn laten vallen */
+body.met-foto #btns{right:calc(max(var(--rest,0px), 22px) + 20px);}
+
+/* ---------- foto op locatie + schuif ---------- */
+#foto{position:fixed;inset:0;z-index:2;overflow:hidden;background:var(--navy-deep);
+  clip-path:inset(0 0 0 var(--split,100%));user-select:none;-webkit-user-select:none;}
+#foto img{position:absolute;display:block;max-width:none;pointer-events:none;}
+#foto .label{position:absolute;right:20px;bottom:20px;background:rgba(14,28,43,.78);
+  color:var(--cream);border:1px solid rgba(199,162,74,.45);border-radius:999px;
+  padding:7px 14px;font-size:12.5px;font-weight:500;letter-spacing:.3px;backdrop-filter:blur(6px);}
+#schuif{position:fixed;top:0;bottom:0;z-index:5;width:44px;margin-left:-22px;
+  left:clamp(22px, var(--split,100%), calc(100% - 22px));
+  cursor:ew-resize;touch-action:none;outline:none;}
+#schuif::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;
+  background:var(--gold);box-shadow:0 0 14px rgba(0,0,0,.55);}
+#schuif .greep{position:absolute;top:50%;left:50%;width:44px;height:44px;margin:-22px 0 0 -22px;
+  display:flex;align-items:center;justify-content:center;border-radius:50%;
+  background:var(--navy-surface);border:1.5px solid var(--gold);color:var(--gold-bright);
+  box-shadow:0 6px 24px rgba(0,0,0,.45);transition:transform .15s, background .15s;}
+#schuif:hover .greep, #schuif:focus-visible .greep, #schuif.sleept .greep{background:#1d3850;transform:scale(1.08);}
+#schuif:focus-visible .greep{outline:2px solid var(--gold-bright);outline-offset:3px;}
 #hint::before{content:"";display:block;width:46px;height:2px;margin:0 auto 12px;
   background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.9;}
 

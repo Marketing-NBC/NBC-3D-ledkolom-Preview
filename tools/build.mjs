@@ -11,7 +11,9 @@
     node tools/build.mjs add --video <pad-of-url> [--name "Klant - datum"]
         Zelfde, maar voor één video die van buiten de repo komt.
 
-  Beide modes bouwen daarna de overzichtspagina docs/index.html opnieuw.
+  Alle modes zetten daarna bij elke preview de pagina opnieuw neer en maken
+  waar nodig de foto van de kolom in de NBC-foyer (zie tools/foto.mjs), en
+  bouwen de overzichtspagina docs/index.html opnieuw.
 */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -19,6 +21,7 @@ import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { maakFoto, FOTO_VERSIE } from './foto.mjs';
 
 const ROOT      = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS      = path.join(ROOT, 'docs');
@@ -191,8 +194,16 @@ function makePreview(srcFile, displayName) {
       duration: Math.round(finalInfo.duration * 10) / 10,
     },
   };
+  fotoBijwerken(dir, meta);
   fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(meta, null, 2) + '\n');
+  schrijfPagina(dir, meta);
 
+  console.log(`  klaar -> docs/p/${slug}/  (${(meta.video.bytes / MB).toFixed(1)} MB)`);
+  return meta;
+}
+
+function schrijfPagina(dir, meta) {
+  const name = meta.name || '';
   const showName = CONFIG.showName !== false && name.length > 0;
   const page = TPL_PAGE
     .replaceAll('__PAGE_TITLE__',    htmlEscape(showName ? `${name} · NBC 3D Kolom` : 'NBC Events · 3D Kolom Preview'))
@@ -200,9 +211,42 @@ function makePreview(srcFile, displayName) {
     .replaceAll('__NAME_DISPLAY__',  showName ? 'block' : 'none')
     .replaceAll('__PROJECT_NAME__',  showName ? htmlEscape(name) : '');
   fs.writeFileSync(path.join(dir, 'index.html'), page);
+}
 
-  console.log(`  klaar -> docs/p/${slug}/  (${(meta.video.bytes / MB).toFixed(1)} MB)`);
-  return meta;
+// De foto van de kolom in de foyer. Lukt die niet, dan gaat de preview gewoon
+// door: de pagina laat de schuif dan weg en toont alleen de 3D-kolom.
+function fotoBijwerken(dir, meta) {
+  const doel = path.join(dir, 'foto.jpg');
+  if (meta.foto && meta.foto.versie === FOTO_VERSIE && fs.existsSync(doel)) return false;
+  try {
+    const moment = maakFoto(path.join(dir, 'kolom.mp4'), doel);
+    meta.foto = { versie: FOTO_VERSIE, moment };
+    console.log(`  foto in de foyer gemaakt voor ${path.basename(dir)} (still op ${moment} sec)`);
+  } catch (e) {
+    console.error(`  LET OP: foto in de foyer mislukt voor ${path.basename(dir)}: ${e.message}`);
+    fs.rmSync(doel, { force: true });
+    delete meta.foto;
+  }
+  return true;
+}
+
+// Bestaande previews meenemen: een nieuwe versie van het sjabloon of van de
+// foyer-foto komt zo ook bij links terecht die al verstuurd zijn.
+function bestaandeBijwerken() {
+  if (!fs.existsSync(PREVIEWS)) return;
+  for (const entry of fs.readdirSync(PREVIEWS, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const dir = path.join(PREVIEWS, entry.name);
+    const metaPath = path.join(dir, 'meta.json');
+    if (!fs.existsSync(metaPath) || !fs.existsSync(path.join(dir, 'kolom.mp4'))) continue;
+    let meta;
+    try { meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch { continue; }
+
+    if (fotoBijwerken(dir, meta)) {
+      fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2) + '\n');
+    }
+    schrijfPagina(dir, meta);
+  }
 }
 
 // ---------- overzichtspagina ----------------------------------------
@@ -418,6 +462,9 @@ function main() {
       if (tijdelijk && bestand) fs.rmSync(bestand, { force: true });
     }
   }
+
+  console.log('\nBestaande previews bijwerken...');
+  bestaandeBijwerken();
 
   buildLanding();
   buildLinks(process.env.SITE_URL || 'https://marketing-nbc.github.io/NBC-3D-ledkolom-Preview/');
