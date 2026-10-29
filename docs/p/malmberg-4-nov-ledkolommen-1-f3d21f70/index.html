@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Malmberg - 4 nov - Ledkolommen 1 · NBC 3D Kolom</title>
+<meta name="robots" content="noindex">
+<meta property="og:title" content="Malmberg - 4 nov - Ledkolommen 1">
+<meta property="og:description" content="3D-preview van de NBC ledkolom">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/nbc.css">
+</head>
+<body class="viewer">
+
+<div id="logo"><img src="../../assets/nbc-logo.svg" alt="NBC Events"></div>
+
+<div id="btns">
+  <button id="spin" class="pill">Auto-draaien: aan</button>
+</div>
+
+<canvas id="c" data-video="kolom.mp4"></canvas>
+<div id="vignette"></div>
+<div id="hint">Sleep om te draaien · scroll om te zoomen</div>
+
+<div id="foto" hidden>
+  <img src="foto.jpg" alt="De ledkolommen in de foyer van NBC, met deze video erop" draggable="false">
+  <span class="label">Op locatie bij NBC</span>
+</div>
+<div id="schuif" hidden role="slider" tabindex="0"
+     aria-label="Schuif tussen de 3D-kolom en de foto op locatie"
+     aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+  <span class="greep" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </span>
+</div>
+
+<div id="start">
+  <div class="projname" style="display:block">Malmberg - 4 nov - Ledkolommen 1</div>
+  <div class="play"><span class="tri">&#9654;</span><span>Bekijk de 3D-kolom</span></div>
+  <small>daarna slepen om rond te draaien</small>
+  <div class="brand">NBC EVENTS · RUIMTE VOOR MAGIE</div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "../../assets/vendor/three/three.module.js",
+  "three/addons/": "../../assets/vendor/three/addons/"
+}}
+</script>
+<script type="module" src="../../assets/viewer.js"></script>
+</body>
+</html>
