@@ -2,8 +2,9 @@
   NBC Events - ledkolom in de foyer-foto zetten
   ------------------------------------------------------------------
   Pakt een still uit kolom.mp4 en plakt die in perspectief op de
-  ledkolommen van tools/foto/nbc-foyer.jpg. Waar de kolommen precies
-  staan, staat in tools/foto/kolommen.json.
+  ledkolommen van docs/assets/foyer/nbc-foyer.jpg. Waar de kolommen
+  precies staan, staat in docs/assets/foyer/kolommen.json. Dat bestand
+  leest de viewer ook, om de video op de foto te laten bewegen.
 
   Geen extra pakketten nodig: ffmpeg leest en schrijft de beelden als
   ruwe RGB, het rekenwerk gebeurt hier.
@@ -15,7 +16,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const HIER     = path.dirname(fileURLToPath(import.meta.url));
-const MAP      = path.join(HIER, 'foto');
+const MAP      = path.join(HIER, '..', 'docs', 'assets', 'foyer');
 const KOLOMMEN = JSON.parse(fs.readFileSync(path.join(MAP, 'kolommen.json'), 'utf8'));
 const BRON     = path.join(MAP, KOLOMMEN.foto);
 

@@ -2,8 +2,8 @@
 
 Maakt van een LED-kolomvideo een deelbare 3D-preview: de klant opent een link,
 ziet de kolom in 3D en kan hem ronddraaien. Rechts staat een foto van de foyer
-van NBC met de video op de ledkolommen; met een schuif in het midden wissel je
-tussen de 3D-kolom op volledig scherm en die foto.
+van NBC waarop de video op de ledkolommen meespeelt; met een schuif in het
+midden wissel je tussen de 3D-kolom op volledig scherm en die foto.
 
 Alles gebeurt online, in deze repository. Je hoeft niets te installeren en er
 hoeft niets op een eigen computer te draaien.
@@ -96,14 +96,19 @@ dus genoeg om die preview te vervangen.
 
 ### De foto op locatie
 
-[`tools/foto.mjs`](tools/foto.mjs) pakt een still uit de video en zet die in
-perspectief op de vier ledkolommen van
-[`tools/foto/nbc-foyer.jpg`](tools/foto/nbc-foyer.jpg). Dat wordt `foto.jpg`
-naast de video, zo'n 450 kB. De still komt uit het midden van de video: van een
+In de preview speelt de video op de vier ledkolommen van de foto, synchroon met
+de 3D-kolom. Dat tekent de browser zelf, uit dezelfde video; er komt dus niets
+extra's bij om te downloaden.
+
+Daaronder ligt een still: [`tools/foto.mjs`](tools/foto.mjs) pakt een beeld uit
+de video en zet dat in perspectief op de kolommen van
+[`docs/assets/foyer/nbc-foyer.jpg`](docs/assets/foyer/nbc-foyer.jpg). Dat wordt
+`foto.jpg` naast de video, zo'n 450 kB. Die still zie je zolang de video nog
+laadt, en blijft staan als bewegend beeld op een toestel niet lukt. De still komt uit het midden van de video: van een
 paar kandidaten wint het drukste beeld, zodat het geen zwart begin of een
 witte flits wordt.
 
-**Zelf het moment kiezen.** Staat er niet het goede beeld op de foto, dan kies
+**Zelf het moment kiezen.** Staat er niet het goede beeld op de still, dan kies
 je zelf de seconde uit de video:
 
 1. Ga naar **Actions → Preview bouwen en publiceren → Run workflow**.
@@ -119,9 +124,10 @@ staat als `fotoMoment` in de `meta.json` van de preview.
 
 Waar de kolommen op de foto staan, en wat er voor ze staat (een stoel, een
 tafel met vaas, de plantenbak), staat in
-[`tools/foto/kolommen.json`](tools/foto/kolommen.json), in pixels van de foto.
-Wijzig je daar iets, of vervang je de foto, dan maakt de volgende build de foto
-bij álle previews opnieuw, ook bij links die al verstuurd zijn. Een andere foto
+[`docs/assets/foyer/kolommen.json`](docs/assets/foyer/kolommen.json), in pixels
+van de foto. Zowel de still als het bewegende beeld lezen dat bestand. Wijzig je
+daar iets, of vervang je de foto, dan maakt de volgende build de still bij álle
+previews opnieuw, ook bij links die al verstuurd zijn. Een andere foto
 betekent wel opnieuw opmeten: de hoekpunten horen bij deze ene opname.
 
 Ontbreekt `foto.jpg` of lukt het maken niet, dan toont de pagina gewoon alleen
@@ -180,7 +186,8 @@ docs/                     wat er op GitHub Pages komt te staan
   index.html              voorpagina zonder lijst (wordt gegenereerd)
   robots.txt              houdt zoekmachines buiten de deur
   assets/
-    viewer.js             de 3D-kolom
+    viewer.js             de 3D-kolom, de schuif en de bewegende foto
+    foyer/                de foto van de foyer en waar de kolommen erop staan
     nbc.css               huisstijl
     vendor/three/         three.js, meegeleverd zodat er geen CDN nodig is
   p/<naam>/               één preview: kolom.mp4 + foto.jpg + index.html + meta.json
@@ -188,17 +195,11 @@ LINKS.md                  alle links, wordt gegenereerd
 tools/
   build.mjs               comprimeert en genereert de pagina's
   foto.mjs                zet een still van de video op de foyer-foto
-  foto/                   die foto en waar de kolommen erop staan
   template-preview.html   sjabloon voor één preview
   template-index.html     sjabloon voor de voorpagina
 config.json               de instellingen hierboven
 legacy/                   de oude Netlify-versie, zie hieronder
 ```
-
-## Voor later
-
-- **Bewegend beeld op de foto op locatie.** Nu staat er een still op de
-  kolommen; de video zelf laten meelopen kan ook, in de browser.
 
 ## De oude versie
 
