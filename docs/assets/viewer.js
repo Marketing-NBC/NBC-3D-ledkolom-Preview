@@ -12,7 +12,9 @@
   Staat er een foto.jpg naast (de kolom in de NBC-foyer, gemaakt door
   tools/foto.mjs), dan komt die rechts in beeld met een schuif ertussen.
   Helemaal naar rechts is alleen de 3D-kolom, helemaal naar links alleen
-  de foto.
+  de foto. Zodra de video loopt, speelt die ook op de kolommen van de
+  foto: assets/foyer/kolommen.json zegt waar die staan. Tot dan, of als
+  dat niet lukt, blijft de still uit foto.jpg staan.
 */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -147,6 +149,7 @@ function buildColumn(){
   orbit.maxDistance = H * 6;
 
   frame();
+  maakBeweging();
 
   if (spinBtn) {
     spinBtn.onclick = () => {
@@ -188,7 +191,22 @@ function loop(){
   requestAnimationFrame(loop);
   if (spin && column) column.rotation.y += 0.005;
   orbit.update();
-  if (deel > 0) renderer.render(scene, camera);
+
+  const W = innerWidth, H = innerHeight, px = Math.round(deel * W);
+  zetBeweging();
+  renderer.setScissorTest(true);
+  if (px > 0) {
+    renderer.setViewport(0, 0, W, H);
+    renderer.setScissor(0, 0, px, H);
+    renderer.render(scene, camera);
+  }
+  if (beweegt && px < W) {
+    // de foto beslaat het hele vlak uit verdeel(); alleen het stuk rechts
+    // van de schuif wordt getekend (three telt van onderen)
+    renderer.setViewport(fotoVlak.links, H - fotoVlak.top - fotoVlak.bh, fotoVlak.bw, fotoVlak.bh);
+    renderer.setScissor(px, 0, W - px, H);
+    renderer.render(fotoScene, fotoCam);
+  }
 }
 
 // ---- 4. foto op locatie, met een schuif ernaast ---------------------
@@ -209,6 +227,10 @@ const BEGIN_DEEL = 0.5;
 
 let deel = 1;          // deel van de breedte voor de 3D-kolom: 1 = alleen 3D, 0 = alleen foto
 let fotoKlaar = false, gestart = false, getoond = false, animatie = 0;
+let fotoVlak = { links: 0, top: 0, bw: 1, bh: 1 };   // waar de foto staat, in CSS-pixels
+// bewegend beeld op de foto, zie onder 5.
+const RAND = 1;     // zoals in tools/foto.mjs: buitenranden 1 pixel ruimer
+let fotoScene = null, fotoCam = null, beweegt = false, kolommen = null, mislukt = false;
 
 function geenFoto(){
   if (fotoEl) fotoEl.remove();
@@ -219,7 +241,7 @@ function geenFoto(){
 
 if (fotoImg && schuifEl && !params.get('v')) {
   // een andere video via ?v= hoort niet bij deze foto
-  const geladen = () => { fotoKlaar = true; toonFoto(); };
+  const geladen = () => { fotoKlaar = true; toonFoto(); maakBeweging(); };
   if (fotoImg.complete) {
     // al klaar voordat dit script draaide, gelukt of niet
     if (fotoImg.naturalWidth) geladen(); else geenFoto();
@@ -265,10 +287,14 @@ function verdeel(){
     const bw = iw * s, bh = ih * s;
     const gewenst = px + (W - px) / 2 - FOTO_FOCUS * bw;
     const links   = Math.min(px, Math.max(W - bw, gewenst));
+    const top     = (H - bh) * FOTO_BOVEN;
     fotoImg.style.width  = bw + 'px';
     fotoImg.style.height = bh + 'px';
     fotoImg.style.left   = links + 'px';
-    fotoImg.style.top    = (H - bh) * FOTO_BOVEN + 'px';
+    fotoImg.style.top    = top + 'px';
+    fotoVlak = { links, top, bw, bh };
+    // hoeveel fotopixels er op één schermpixel vallen, voor de bemonstering
+    if (fotoScene) fotoScene.userData.stap.value = iw / (bw * renderer.getPixelRatio());
   }
 
   // de kolom in het midden van zijn eigen stuk scherm houden
@@ -316,4 +342,177 @@ if (schuifEl) {
     cancelAnimationFrame(animatie);
     e.preventDefault();
   });
+}
+
+// ---- 5. de video ook op de kolommen van de foto ---------------------
+// Eén vlak ter grootte van de foto, met een shader die per pixel uitrekent
+// op welke zijde van welke kolom hij valt en daar de video bemonstert. Het
+// rekenwerk is hetzelfde als in tools/foto.mjs, dat de still maakt.
+
+if (fotoImg && webglReady && !params.get('v')) {
+  fetch('../../assets/foyer/kolommen.json')
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+    .then((data) => { kolommen = data; maakBeweging(); })
+    .catch((e) => console.warn('Geen bewegend beeld op de foto:', e.message));
+}
+
+// homografie van het eenheidsvierkant naar vier hoekpunten, en terug
+function vierkantNaarVierhoek([[x0, y0], [x1, y1], [x2, y2], [x3, y3]]){
+  const sx = x0 - x1 + x2 - x3, sy = y0 - y1 + y2 - y3;
+  const dx1 = x1 - x2, dx2 = x3 - x2, dy1 = y1 - y2, dy2 = y3 - y2;
+  const den = dx1 * dy2 - dx2 * dy1;
+  const g = (sx * dy2 - dx2 * sy) / den;
+  const h = (dx1 * sy - sx * dy1) / den;
+  return [x1 - x0 + g * x1, x3 - x0 + h * x3, x0, y1 - y0 + g * y1, y3 - y0 + h * y3, y0, g, h, 1];
+}
+
+function inverteer([a, b, c, d, e, f, g, h, i]){
+  const A = e * i - f * h, B = f * g - d * i, C = d * h - e * g;
+  const det = a * A + b * B + c * C;
+  return [
+    A / det, (c * h - b * i) / det, (b * f - c * e) / det,
+    B / det, (a * i - c * g) / det, (c * d - a * f) / det,
+    C / det, (b * g - a * h) / det, (a * e - b * d) / det,
+  ];
+}
+
+// waar de video komt: de zijden van de kolommen, min wat ervoor staat
+function maakMasker(fw, fh){
+  const c = document.createElement('canvas');
+  c.width = fw; c.height = fh;
+  const g = c.getContext('2d');
+  const pad = (punten) => {
+    g.beginPath();
+    punten.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+    g.closePath();
+  };
+  g.fillStyle = g.strokeStyle = '#fff';
+  g.lineWidth = 2 * RAND;
+  g.lineJoin = 'miter';
+  for (const kolom of kolommen.kolommen) {
+    for (const vl of kolom.vlakken) { pad(vl.hoeken); g.fill(); g.stroke(); }
+  }
+  g.globalCompositeOperation = 'destination-out';
+  for (const kolom of kolommen.kolommen) {
+    for (const poly of kolom.ervoor) { pad(poly); g.fill(); }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.NoColorSpace;
+  return tex;
+}
+
+function maakBeweging(){
+  if (fotoScene || mislukt || !kolommen || !fotoKlaar || !webglReady || !column) return;
+
+  const fw = fotoImg.naturalWidth, fh = fotoImg.naturalHeight;
+  const inv = [], kader = [], vlak = [];
+  for (const kolom of kolommen.kolommen) {
+    for (const vl of kolom.vlakken) {
+      const [a, b, c, d] = vl.hoeken;
+      const breed = (Math.hypot(b[0] - a[0], b[1] - a[1]) + Math.hypot(c[0] - d[0], c[1] - d[1])) / 2;
+      const hoog  = (Math.hypot(d[0] - a[0], d[1] - a[1]) + Math.hypot(c[0] - b[0], c[1] - b[1])) / 2;
+      const m = inverteer(vierkantNaarVierhoek(vl.hoeken));
+      inv.push(new THREE.Matrix3().set(...m));
+      const xs = vl.hoeken.map((p) => p[0]), ys = vl.hoeken.map((p) => p[1]);
+      const r = RAND + 1;
+      kader.push(new THREE.Vector4(Math.min(...xs) - r, Math.min(...ys) - r, Math.max(...xs) + r, Math.max(...ys) + r));
+      vlak.push(new THREE.Vector3((vl.zijde - 1) / 4, RAND / breed, RAND / hoog));
+    }
+  }
+
+  // los ingeladen in plaats van het img-element: dat heeft CSS-maten, en de
+  // browser heeft hem toch al in de cache
+  const fotoTex = new THREE.TextureLoader().load(fotoImg.currentSrc || fotoImg.src);
+  fotoTex.colorSpace = THREE.SRGBColorSpace;
+
+  const stap = { value: 1 };
+  const mat = new THREE.ShaderMaterial({
+    defines: { VLAKKEN: inv.length },
+    uniforms: {
+      foto:   { value: fotoTex },
+      masker: { value: maakMasker(fw, fh) },
+      video:  { value: column.material[0].map },
+      inv:    { value: inv },
+      kader:  { value: kader },
+      vlak:   { value: vlak },
+      maat:   { value: new THREE.Vector2(fw, fh) },
+      stap,
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+    fragmentShader: `
+      uniform sampler2D foto, masker, video;
+      uniform mat3 inv[VLAKKEN];
+      uniform vec4 kader[VLAKKEN];   // omhullende per zijde, in fotopixels
+      uniform vec3 vlak[VLAKKEN];    // begin van de zijde in de video, extra rand in u en v
+      uniform vec2 maat;             // fotobreedte en -hoogte
+      uniform float stap;            // fotopixels per schermpixel
+      varying vec2 vUv;
+
+      // eerst precies binnen een zijde, daarna in de extra rand: zo blijft
+      // de naad tussen twee zijden op zijn plek
+      // three slaat videotexturen zonder sRGB-omzetting op; dat doen we hier,
+      // net als MeshBasicMaterial bij de 3D-kolom
+      vec3 lineair(vec3 c){
+        return mix(pow(c * 0.9478672986 + vec3(0.0521327014), vec3(2.4)), c * 0.0773993808,
+                   vec3(lessThanEqual(c, vec3(0.04045))));
+      }
+
+      bool zoek(vec2 p, float ruim, out vec2 tc){
+        for (int i = 0; i < VLAKKEN; i++) {
+          vec4 k = kader[i];
+          if (p.x < k.x || p.y < k.y || p.x > k.z || p.y > k.w) continue;
+          vec3 q = inv[i] * vec3(p, 1.0);
+          vec2 uv = q.xy / q.z;
+          vec2 m = ruim * vlak[i].yz;
+          if (uv.x < -m.x || uv.x > 1.0 + m.x || uv.y < -m.y || uv.y > 1.0 + m.y) continue;
+          uv = clamp(uv, 0.0, 1.0);
+          tc = vec2(vlak[i].x + uv.x * 0.25, 1.0 - uv.y);
+          return true;
+        }
+        return false;
+      }
+
+      void main(){
+        vec4 basis = texture2D(foto, vUv);
+        float dekking = texture2D(masker, vUv).a;
+        gl_FragColor = basis;
+        if (dekking > 0.002) {
+          // 3x3 punten per schermpixel: de video is hier flink verkleind
+          vec2 p = vec2(vUv.x, 1.0 - vUv.y) * maat;
+          vec3 som = vec3(0.0);
+          float n = 0.0;
+          for (int sy = -1; sy <= 1; sy++) {
+            for (int sx = -1; sx <= 1; sx++) {
+              vec2 tc;
+              vec2 q = p + vec2(float(sx), float(sy)) * stap / 3.0;
+              if (zoek(q, 0.0, tc) || zoek(q, 1.0, tc)) { som += lineair(texture2D(video, tc).rgb); n += 1.0; }
+            }
+          }
+          if (n > 0.0) gl_FragColor = vec4(mix(basis.rgb, som / n, dekking), 1.0);
+        }
+        #include <colorspace_fragment>
+      }`,
+    depthTest: false,
+    depthWrite: false,
+  });
+
+  fotoScene = new THREE.Scene();
+  fotoScene.userData.stap = stap;
+  fotoScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat));
+  fotoCam = new THREE.Camera();
+
+  // lukt de shader niet, dan blijft gewoon de still staan
+  renderer.debug.onShaderError = () => { mislukt = true; beweegt = false; zetBeweging(); };
+  renderer.compile(fotoScene, fotoCam);
+  verdeel();
+}
+
+// pas bewegen als er echt videobeeld is; tot die tijd de still uit foto.jpg
+function zetBeweging(){
+  const nu = Boolean(fotoScene && !mislukt && getoond && video.readyState >= 2);
+  if (nu === beweegt) return;
+  beweegt = nu;
+  document.body.classList.toggle('beweegt', beweegt);
 }
