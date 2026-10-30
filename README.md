@@ -65,6 +65,40 @@ Verder gaat het precies hetzelfde.
 publiceren → Run workflow**, plak de link bij *video_url* en vul bij *naam* in
 wat er op het startscherm moet komen.
 
+## Vanuit de designaanvraag
+
+Bij een LED-kolom-aanvraag in de
+[designaanvraag-tool](https://github.com/Marketing-NBC/designaanvraag) hoef je
+hier niets te doen. Sleep de mp4 in de subtaak **Oplevering** in Asana en zet
+**Oplevermail** op *Stuur proef naar mij* of *Verstuur nu*. Daarna gaat het
+vanzelf:
+
+1. De designaanvraag zet de video klaar, kiest de link (naam van het event plus
+   een staartje van acht tekens) en start hier **Preview bouwen en publiceren**.
+2. Die run vraagt de designaanvraag wat er klaarstaat, haalt de video uit Asana,
+   en bouwt de preview zoals altijd.
+3. Na het publiceren meldt de run terug wat er gelukt is. Wachtte er een
+   opleveringsmail op deze kolom, dan gaat die nu de deur uit, met de link. Zo
+   niet, dan komt de link als reactie bij de taak in Asana.
+
+Lukt een video niet, bijvoorbeeld omdat hij breder is dan hoog, dan komt de
+reden in Asana te staan. De rest van de run gaat gewoon door.
+
+Een nieuwe versie van de video komt op **dezelfde link**: een link die al
+verstuurd is, toont daarna de nieuwe versie.
+
+**Eenmalig instellen.** Hier, onder **Settings → Secrets and variables →
+Actions**:
+
+| Soort    | Naam                    | Waarde                                                                 |
+| -------- | ----------------------- | ---------------------------------------------------------------------- |
+| Variable | `DESIGNAANVRAAG_URL`    | `https://<project-id>.supabase.co/functions/v1/ledkolom-preview`       |
+| Secret   | `DESIGNAANVRAAG_SECRET` | Een lange willekeurige tekst; dezelfde als `LEDKOLOM_SECRET` daar      |
+
+Staan ze er niet, dan doet de workflow precies wat hij altijd deed. Wat er in
+de designaanvraag-repo moet staan, staat in diens README onder *3D-preview van
+de ledkolom*.
+
 ## Wat er onder water gebeurt
 
 Het werk is over twee workflows verdeeld, en daar is een reden voor. Een
@@ -88,7 +122,9 @@ release en gaat er dan mee aan de slag:
 4. maakt de foto op locatie (zie hieronder);
 5. zet er een preview-pagina naast en werkt de overzichtspagina bij;
 6. gooit het geüploade bronbestand weg, zodat de repository klein blijft;
-7. publiceert `docs/` naar GitHub Pages.
+7. publiceert `docs/` naar GitHub Pages;
+8. meldt de designaanvraag welke van zijn video's online staan
+   (`tools/aanvragen-melden.mjs`).
 
 De verhouding van de kolom wordt niet in de pagina gebakken maar in de browser
 uit de video zelf gelezen. Een andere `kolom.mp4` in een bestaande map zetten is
@@ -194,6 +230,7 @@ docs/                     wat er op GitHub Pages komt te staan
 LINKS.md                  alle links, wordt gegenereerd
 tools/
   build.mjs               comprimeert en genereert de pagina's
+  aanvragen-melden.mjs    meldt de designaanvraag wat er online staat
   foto.mjs                zet een still van de video op de foyer-foto
   template-preview.html   sjabloon voor één preview
   template-index.html     sjabloon voor de voorpagina
