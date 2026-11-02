@@ -15,10 +15,10 @@
         Kiest zelf het moment uit de video voor de foto op locatie.
         Zonder --sec kiest het script weer zelf.
 
-  Staan DESIGNAANVRAAG_URL en DESIGNAANVRAAG_SECRET in de omgeving, dan haalt
-  elke mode daarnaast de ledkolomvideo's op die bij een oplevering in de
-  designaanvraag-tool klaarstaan (zie "Vanuit de designaanvraag" in de README),
-  en schrijft hij naar AANVRAAG_UITSLAG wat daarvan gelukt is.
+  Staan DESIGNAANVRAAG_URL en DESIGNAANVRAAG_SECRET in de omgeving, dan vraagt
+  elke mode daarnaast de designaanvraag-tool welke releases bij een oplevering
+  horen (zie "Vanuit de designaanvraag" in de README), zorgt dat daar een
+  preview van is, en schrijft naar AANVRAAG_UITSLAG welke links dat zijn.
 
   Alle modes zetten daarna bij elke preview de pagina opnieuw neer en maken
   waar nodig de foto van de kolom in de NBC-foyer (zie tools/foto.mjs), en
@@ -71,7 +71,9 @@ function slugify(s) {
 // link heeft de andere niet kan raden. Bestaat er al een map voor deze naam,
 // dan houden we dat staartje aan: een nieuwe versie van dezelfde video hoort
 // op dezelfde link te blijven staan.
-const TOKEN = /-[0-9a-f]{8}$/;
+// Precies "-" plus acht tekens na de naam: zonder ^ zou "ASR" ook de map van
+// "ASR - 2 sep" (asr-2-sep-5f600df2) pakken en die overschrijven.
+const TOKEN = /^-[0-9a-f]{8}$/;
 
 function slugVoor(name) {
   const basis = slugify(name);
@@ -163,10 +165,11 @@ function encode(src, dest, info) {
 
 // ---------- één video tot preview verwerken --------------------------
 
-function makePreview(srcFile, displayName, vasteSlug) {
+// bron: uit welke release-bijlage de video kwam, zodat de designaanvraag hem
+// later kan terugvinden zonder opnieuw te bouwen
+function makePreview(srcFile, displayName, bron) {
   const name = displayName || displayNameFromFile(srcFile);
-  // de designaanvraag kiest de map zelf, zodat de link al in de mail kan voordat dit klaar is
-  const slug = vasteSlug || slugVoor(name);
+  const slug = slugVoor(name);
   const dir  = path.join(PREVIEWS, slug);
 
   const info = probe(srcFile);
@@ -209,6 +212,7 @@ function makePreview(srcFile, displayName, vasteSlug) {
     },
   };
   if (fotoMoment !== undefined) meta.fotoMoment = fotoMoment;
+  if (bron) meta.bron = bron;
   fotoBijwerken(dir, meta);
   fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(meta, null, 2) + '\n');
   schrijfPagina(dir, meta);
@@ -418,7 +422,7 @@ function collectLooseVideos() {
 
 function api(pad) {
   const token = process.env.GITHUB_TOKEN || '';
-  const url = pad.startsWith('http') ? pad : `https://api.github.com${pad}`;
+  const url = pad.startsWith('http') ? pad : `${process.env.GITHUB_API_URL || 'https://api.github.com'}${pad}`;
   const args = ['-fsSL', '--retry', '3', '--retry-delay', '2', '-H', 'Accept: application/vnd.github+json'];
   if (token) args.push('-H', `Authorization: Bearer ${token}`);
   return JSON.parse(run('curl', [...args, url]));
@@ -461,70 +465,93 @@ function download(url) {
   return dest;
 }
 
-// ---------- video's uit de designaanvraag ---------------------------
+// ---------- releases uit de designaanvraag --------------------------
 //
-// Bij een LED-kolom-aanvraag zet Marketing de video in de subtaak Oplevering
-// in Asana. De designaanvraag-tool zet die klaar; hier halen we op wat er
-// klaarstaat. De video zelf komt via een doorverwijzing naar Asana, met een
-// downloadlink die maar een paar minuten geldig is: daarom pas vlak voor het
-// downloaden. Het geheim gaat via een bestand naar curl, zodat het niet in de
-// lijst met processen of in een foutmelding terechtkomt.
-
-const AANVRAAG_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*-[0-9a-f]{8}$/;
-
-function aanvraagKop() {
-  const kop = path.join(os.tmpdir(), 'kop_' + crypto.randomBytes(8).toString('hex'));
-  fs.writeFileSync(kop, `Authorization: Bearer ${process.env.DESIGNAANVRAAG_SECRET}\n`, { mode: 0o600 });
-  return kop;
-}
+// Bij een LED-kolom-aanvraag maakt Marketing zoals altijd een release met de
+// mp4, en plakt de link daarvan in de subtaak Oplevering in Asana. De
+// designaanvraag-tool zet die link klaar; hier halen we op wat er klaarstaat,
+// zorgen dat er een preview van is, en melden (na het publiceren, met
+// tools/aanvragen-melden.mjs) welke link dat is.
+//
+// Meestal heeft "Release verwerken" de preview dan al gemaakt: die staat in
+// meta.json bij "bron" en wordt niet opnieuw gebouwd. Het geheim gaat via een
+// bestand naar curl, zodat het niet in de lijst met processen of in een
+// foutmelding terechtkomt.
 
 function aanvraagJobs() {
   const basis = process.env.DESIGNAANVRAAG_URL;
   if (!basis || !process.env.DESIGNAANVRAAG_SECRET) return [];
-  const kop = aanvraagKop();
+  const kop = path.join(os.tmpdir(), 'kop_' + crypto.randomBytes(8).toString('hex'));
+  fs.writeFileSync(kop, `Authorization: Bearer ${process.env.DESIGNAANVRAAG_SECRET}\n`, { mode: 0o600 });
   try {
     const out = run('curl', ['-fsS', '--retry', '3', '--retry-delay', '2', '-H', `@${kop}`, basis]);
-    const lijst = (JSON.parse(out).previews || []).filter((p) => {
-      if (AANVRAAG_SLUG.test(p.slug || '')) return true;
-      console.error(`  overgeslagen: ongeldige map "${p.slug}"`);
-      return false;
-    });
-    if (lijst.length) console.log(`Designaanvraag: ${lijst.length} ledkolom(men) klaargezet.`);
-    return lijst.map((p) => ({
-      aanvraag: { id: p.id, bijlage: p.bijlage },
-      slug: p.slug,
-      name: p.naam,
-      videoVan: `${basis}?video=${encodeURIComponent(p.id)}`,
-      bestandsnaam: p.bestandsnaam,
-      ext: path.extname(p.bestandsnaam || '').toLowerCase() || '.mp4',
-    }));
+    const lijst = (JSON.parse(out).releases || []).filter((p) => p && typeof p.id === 'string' && typeof p.bron === 'string');
+    if (lijst.length) console.log(`\nDesignaanvraag: ${lijst.length} release-link(s) klaargezet.`);
+    return lijst;
   } catch (e) {
     // een storing bij de designaanvraag mag het gewone werk niet tegenhouden
-    console.error(`::warning::Klaargezette video's uit de designaanvraag ophalen mislukt: ${e.message.split('\n')[0]}`);
+    console.error(`::warning::Klaargezette releases uit de designaanvraag ophalen mislukt: ${e.message.split('\n')[0]}`);
     return [];
   } finally {
     fs.rmSync(kop, { force: true });
   }
 }
 
-function downloadAanvraag(job) {
-  // onder zijn eigen naam, zodat een foutmelding in Asana over "Zorgcongres.mp4"
-  // gaat en niet over een tijdelijk bestand
-  job.tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aanvraag_'));
-  const naam = path.basename(job.bestandsnaam || '').replace(/[^\w .()-]+/g, '_').replace(/^\.+/, '') || 'kolom';
-  const dest = path.join(job.tmpDir, path.extname(naam) ? naam : naam + job.ext);
-  const kop = aanvraagKop();
-  console.log('  ophalen uit de designaanvraag...');
-  try {
-    // -L volgt de doorverwijzing naar Asana; curl stuurt de Authorization-kop
-    // niet mee naar een andere host
-    run('curl', ['-fsSL', '--retry', '3', '--retry-delay', '2', '-H', `@${kop}`, '-o', dest, job.videoVan]);
-  } catch (e) {
-    throw new Error('De video kon niet uit Asana gehaald worden. Staat hij nog in de subtaak Oplevering?');
-  } finally {
-    fs.rmSync(kop, { force: true });
+// https://github.com/<eigenaar>/<repo>/releases/tag/<tag>            -> alle video's van die release
+// https://github.com/<eigenaar>/<repo>/releases/download/<tag>/<bestand> -> alleen dat bestand
+function leesReleaseLink(link) {
+  const m = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/releases\/(tag|download)\/([^/?#]+)(?:\/([^/?#]+))?\/?$/i.exec(link);
+  const repo = process.env.GITHUB_REPOSITORY || '';
+  if (!m || (m[3].toLowerCase() === 'download') !== Boolean(m[5])) {
+    throw new Error(`Dit is geen link naar een release: ${link}`);
   }
-  return dest;
+  if (repo && `${m[1]}/${m[2]}`.toLowerCase() !== repo.toLowerCase()) {
+    throw new Error(`De link wijst naar een andere repository dan ${repo}: ${link}`);
+  }
+  return { tag: decodeURIComponent(m[4]), bestand: m[5] ? decodeURIComponent(m[5]) : null };
+}
+
+// de preview die al van deze release-bijlage gemaakt is, als die er is
+function previewVanBron(asset) {
+  return readAllMeta().find((m) => m.bron && m.bron.asset === asset.id) || null;
+}
+
+function verwerkAanvraag(job) {
+  const { tag, bestand } = leesReleaseLink(job.bron);
+  let rel;
+  try {
+    rel = api(`/repos/${process.env.GITHUB_REPOSITORY}/releases/tags/${encodeURIComponent(tag)}`);
+  } catch {
+    throw new Error(`Release "${tag}" niet gevonden. Is hij gepubliceerd (niet als concept), en klopt de link?`);
+  }
+  const videos = (rel.assets || [])
+    .filter((a) => VIDEO_EXT.has(path.extname(a.name).toLowerCase()))
+    .filter((a) => !bestand || a.name === bestand);
+  if (!videos.length) {
+    throw new Error(bestand
+      ? `In release "${tag}" staat geen video "${bestand}".`
+      : `In release "${tag}" staat geen video. Sleep de mp4 bij "Attach binaries".`);
+  }
+
+  const previews = [];
+  for (const asset of videos) {
+    let meta = previewVanBron(asset);
+    if (meta) {
+      console.log(`  ${asset.name}: staat al online als docs/p/${meta.slug}/`);
+    } else {
+      const file = downloadAsset(asset);
+      try {
+        meta = makePreview(file, displayNameFromFile(asset.name), { tag, bestand: asset.name, asset: asset.id });
+      } catch (e) {
+        // zonder de tip over config.json: daar kan Marketing vanuit Asana niets mee
+        throw new Error(e.message.split('\n')[0].replace(/\s*Zet anders "forceAll".*$/, '').replace(/"bron_[0-9a-f]+\.\w+"/, `"${asset.name}"`));
+      } finally {
+        fs.rmSync(file, { force: true });
+      }
+    }
+    previews.push({ naam: meta.name, slug: meta.slug });
+  }
+  return previews;
 }
 
 // alle videobestanden die aan een release hangen
@@ -541,7 +568,7 @@ function releaseJobs(tag) {
       `Sleep de mp4 bij "Attach binaries" en publiceer de release opnieuw.`
     );
   }
-  return videos.map((a) => ({ asset: a, name: displayNameFromFile(a.name) }));
+  return videos.map((a) => ({ asset: a, name: displayNameFromFile(a.name), bron: { tag, bestand: a.name, asset: a.id } }));
 }
 
 // ---------- hoofdprogramma -------------------------------------------
@@ -586,9 +613,6 @@ function main() {
     throw new Error(`Onbekende mode "${mode}". Gebruik "release", "add", "scan" of "moment".`);
   }
 
-  jobs.push(...aanvraagJobs());
-  const uitslagen = [];
-
   if (jobs.length === 0) console.log("Geen nieuwe video's gevonden.");
 
   for (const job of jobs) {
@@ -598,23 +622,26 @@ function main() {
     try {
       if (!bestand && job.asset) { bestand = downloadAsset(job.asset); tijdelijk = true; }
       if (!bestand && job.url)   { bestand = download(job.url);        tijdelijk = true; }
-      if (!bestand && job.videoVan) { bestand = downloadAanvraag(job); tijdelijk = true; }
-      makePreview(bestand, job.name, job.slug);
-      if (job.aanvraag) uitslagen.push({ ...job.aanvraag, status: 'klaar' });
+      makePreview(bestand, job.name, job.bron);
     } catch (e) {
+      errors.push(`${job.name || path.basename(bestand || '?')}: ${e.message}`);
       console.error(`  FOUT: ${e.message}`);
-      // een video uit de designaanvraag die niet lukt, gaat terug naar Asana
-      // met de reden; die houdt de rest van de run niet tegen
-      // (zonder de tip over config.json: daar kan Marketing vanuit Asana niets mee)
-      if (job.aanvraag) {
-        const fout = e.message.split('\n')[0].replace(/\s*Zet anders "forceAll".*$/, '');
-        uitslagen.push({ ...job.aanvraag, status: 'mislukt', fout });
-      }
-      else errors.push(`${job.name || path.basename(bestand || '?')}: ${e.message}`);
     } finally {
       // het bronbestand blijft nooit in de repository achter
       if (tijdelijk && bestand) fs.rmSync(bestand, { force: true });
-      if (job.tmpDir) fs.rmSync(job.tmpDir, { recursive: true, force: true });
+    }
+  }
+
+  // een release uit de designaanvraag die niet lukt, gaat met de reden terug
+  // naar Asana; die houdt de rest van de run niet tegen
+  const uitslagen = [];
+  for (const job of aanvraagJobs()) {
+    console.log(`\n> designaanvraag: ${job.bron}`);
+    try {
+      uitslagen.push({ id: job.id, bron: job.bron, status: 'klaar', previews: verwerkAanvraag(job) });
+    } catch (e) {
+      console.error(`  FOUT: ${e.message}`);
+      uitslagen.push({ id: job.id, bron: job.bron, status: 'mislukt', fout: e.message.split('\n')[0] });
     }
   }
 

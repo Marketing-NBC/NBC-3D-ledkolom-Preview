@@ -67,25 +67,30 @@ wat er op het startscherm moet komen.
 
 ## Vanuit de designaanvraag
 
-Bij een LED-kolom-aanvraag in de
-[designaanvraag-tool](https://github.com/Marketing-NBC/designaanvraag) hoef je
-hier niets te doen. Sleep de mp4 in de subtaak **Oplevering** in Asana en zet
-**Oplevermail** op *Stuur proef naar mij* of *Verstuur nu*. Daarna gaat het
-vanzelf:
+Lever je een LED-kolom op via de
+[designaanvraag-tool](https://github.com/Marketing-NBC/designaanvraag), dan
+krijgt de aanvrager de link naar de preview vanzelf in de opleveringsmail:
 
-1. De designaanvraag zet de video klaar, kiest de link (naam van het event plus
-   een staartje van acht tekens) en start hier **Preview bouwen en publiceren**.
-2. Die run vraagt de designaanvraag wat er klaarstaat, haalt de video uit Asana,
-   en bouwt de preview zoals altijd.
-3. Na het publiceren meldt de run terug wat er gelukt is. Wachtte er een
-   opleveringsmail op deze kolom, dan gaat die nu de deur uit, met de link. Zo
-   niet, dan komt de link als reactie bij de taak in Asana.
+1. Maak hier zoals altijd een **release** met de mp4 (zie hierboven).
+2. Kopieer de link van die release (de pagina waar je na *Publish release* op
+   uitkomt, `.../releases/tag/<naam>`) en plak hem in de beschrijving van de
+   subtaak **Oplevering** in Asana, op een eigen regel.
+3. Zet **Oplevermail** op *Stuur proef naar mij* of *Verstuur nu*.
 
-Lukt een video niet, bijvoorbeeld omdat hij breder is dan hoog, dan komt de
-reden in Asana te staan. De rest van de run gaat gewoon door.
+De designaanvraag start dan hier **Preview bouwen en publiceren**. Die run
+vraagt welke release-links er klaarstaan, zoekt de preview die
+*Release verwerken* al van die release maakte (of maakt hem alsnog), en meldt
+na het publiceren welke link dat is. Wachtte er een opleveringsmail op, dan
+gaat die nu de deur uit; zo niet, dan komt de link als reactie bij de taak.
+De GitHub-link zelf komt niet in de mail.
 
-Een nieuwe versie van de video komt op **dezelfde link**: een link die al
-verstuurd is, toont daarna de nieuwe versie.
+Lukt het niet, bijvoorbeeld omdat de release niet bestaat of de video breder
+is dan hoog, dan komt de reden in Asana te staan. De rest van de run gaat
+gewoon door.
+
+Welke release bij welke preview hoort, staat in `meta.json` bij `bron`. Een
+preview van vóór deze koppeling heeft dat niet; die wordt dan één keer
+opnieuw gemaakt, met dezelfde naam en dus op dezelfde link.
 
 **Eenmalig instellen.** Hier, onder **Settings → Secrets and variables →
 Actions**:
@@ -123,7 +128,7 @@ release en gaat er dan mee aan de slag:
 5. zet er een preview-pagina naast en werkt de overzichtspagina bij;
 6. gooit het geüploade bronbestand weg, zodat de repository klein blijft;
 7. publiceert `docs/` naar GitHub Pages;
-8. meldt de designaanvraag welke van zijn video's online staan
+8. meldt de designaanvraag welke van zijn release-links nu online staan
    (`tools/aanvragen-melden.mjs`).
 
 De verhouding van de kolom wordt niet in de pagina gebakken maar in de browser
