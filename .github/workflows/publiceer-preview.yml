@@ -3,6 +3,11 @@ name: Preview bouwen en publiceren
 # Zet de site online. Draait na "Release verwerken" (via workflow_run, want
 # dat gebeurt altijd op de standaardbranch en dus mag deze job wel naar Pages
 # publiceren), als er iets in docs/ verandert, en handmatig via "Run workflow".
+#
+# De designaanvraag-tool start hem ook (via "Run workflow", zonder invoer) als
+# er bij een oplevering een ledkolom klaarstaat. Elke run haalt op wat daar
+# klaarstaat en meldt na het publiceren terug wat er gelukt is; zie
+# "Vanuit de designaanvraag" in de README.
 on:
   workflow_run:
     workflows: ["Release verwerken"]
@@ -79,6 +84,9 @@ jobs:
           NAAM: ${{ inputs.naam }}
           FOTO_PREVIEW: ${{ inputs.foto_preview }}
           FOTO_MOMENT: ${{ inputs.foto_moment }}
+          DESIGNAANVRAAG_URL: ${{ vars.DESIGNAANVRAAG_URL }}
+          DESIGNAANVRAAG_SECRET: ${{ secrets.DESIGNAANVRAAG_SECRET }}
+          AANVRAAG_UITSLAG: ${{ runner.temp }}/aanvragen.json
         run: |
           if [ -n "$FOTO_PREVIEW" ]; then
             node tools/build.mjs moment --preview "$FOTO_PREVIEW" --sec "$FOTO_MOMENT"
@@ -148,3 +156,15 @@ jobs:
             console.log(`- **${m.name}** — ${basis}p/${map}/ (${mb} MB)`);
           }
           JS
+
+      # Altijd, ook als er hierboven iets faalde: wacht er in de designaanvraag
+      # een opleveringsmail op een ledkolom, dan moet die horen hoe het ging.
+      - name: Designaanvraag laten weten wat er online staat
+        if: always()
+        env:
+          AANVRAAG_UITSLAG: ${{ runner.temp }}/aanvragen.json
+          GEPUBLICEERD: ${{ steps.deploy.outcome }}
+          DESIGNAANVRAAG_URL: ${{ vars.DESIGNAANVRAAG_URL }}
+          DESIGNAANVRAAG_SECRET: ${{ secrets.DESIGNAANVRAAG_SECRET }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node tools/aanvragen-melden.mjs
